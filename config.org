@@ -24,7 +24,8 @@ file needs. Do not move it.
 
   ;; Initialize package sources if needed
   (setq package-archives '(("melpa" . "https://melpa.org/packages/")
-                           ("elpa" . "https://elpa.gnu.org/packages/")))
+                           ("elpa" . "https://elpa.gnu.org/packages/")
+                           ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
 
   ;; Refresh package contents if needed
   (unless package-archive-contents
@@ -64,6 +65,7 @@ All self-contained logic lives in =lisp/ps-*.el=.
   (require 'ps-timezone)
   (require 'ps-file-tree)
   (require 'ps-file-tree-icons)
+  (require 'ps-gptel)
 #+end_src
 
 * Settings
@@ -184,6 +186,16 @@ Path to the Python script invoked from the agenda finalize hook.
 #+begin_src emacs-lisp
   (setq ps/agenda-emoji-matcher-path
         (expand-file-name "scripts/org_emoji_matcher.py" user-emacs-directory))
+#+end_src
+
+** gptel / Claude (ps-gptel.el)
+gptel talks to Claude through the Claude Pro/Max subscription (reusing the OAuth
+token Claude Code stores in the macOS Keychain), so there is no separate
+pay-per-token API cost. =ps/gptel-default-model= is the model used by default;
+=ps/gptel-models= are the choices offered in gptel's model switcher.
+#+begin_src emacs-lisp
+  (setq ps/gptel-default-model 'claude-opus-4-8
+        ps/gptel-models '(claude-opus-4-8 claude-sonnet-4-6 claude-haiku-4-5))
 #+end_src
 
 * Editor & UI
@@ -790,6 +802,55 @@ The ignore list and category icons live in =lisp/ps-file-tree.el= and
             (run-with-timer delay nil #'ps/file-tree-init base))))))
 #+end_src
 
+* AI Assistant
+Two complementary ways to use Claude inside Emacs, both running on the Claude
+Pro/Max subscription (no separate pay-per-token cost):
+
+- *Claude Code IDE* (=claude-code-ide.el=) runs the real Claude Code agent in a
+  side window, sees the current selection, and shows proposed edits as Emacs
+  diffs. Bound under =C-c c=.
+- *gptel* (=ps-gptel.el=) is a lightweight in-buffer assistant for chat,
+  rewriting the region, and inline questions. Bound under =C-c g=.
+
+** Claude Code IDE (claude-code-ide.el)
+=eat= is the terminal backend (pure Elisp, no native build). The package is not
+on MELPA, so it is installed once via =package-vc-install= (Emacs 29 has no
+=use-package :vc=). It drives the =claude= CLI, which uses the subscription
+natively — no API key or token handling needed.
+#+begin_src emacs-lisp
+  (use-package eat :ensure t :defer t)
+
+  (unless (package-installed-p 'claude-code-ide)
+    (package-vc-install "https://github.com/manzaltu/claude-code-ide.el"))
+
+  (use-package claude-code-ide
+    :ensure nil
+    :defer t
+    :commands (claude-code-ide claude-code-ide-menu claude-code-ide-stop
+               claude-code-ide-switch-to-buffer)
+    :init
+    ;; Pin the CLI path so a GUI (Finder-launched) Emacs finds it too.
+    (let ((cli (expand-file-name "~/.local/bin/claude")))
+      (when (file-executable-p cli)
+        (setq claude-code-ide-cli-path cli)))
+    :config
+    (setq claude-code-ide-terminal-backend 'eat)
+    ;; Let Claude use Emacs (selection, diagnostics) and show edits as diffs.
+    (claude-code-ide-emacs-tools-setup))
+#+end_src
+
+** gptel (ps-gptel.el)
+Backend wiring — OAuth via the Keychain, the Claude Code identity handshake, and
+model routing — lives in =lisp/ps-gptel.el=; defaults are in =* Settings / gptel=
+above. Chat buffers open in =org-mode= so replies are normal Org text.
+#+begin_src emacs-lisp
+  (use-package gptel
+    :commands (gptel gptel-send gptel-menu gptel-rewrite gptel-add)
+    :config
+    (setq gptel-default-mode 'org-mode)
+    (ps/gptel-setup))
+#+end_src
+
 * Keybindings & Menu
 ** F7 — reinsert empty lines
 Logic lives in =lisp/ps-blank-lines.el=.
@@ -858,6 +919,32 @@ Logic lives in =lisp/ps-blank-lines.el=.
         (ps/file-tree-show))))
 
   (global-set-key (kbd "C-x |") 'ps/window-split-toggle)
+#+end_src
+
+** AI assistant prefix keys (=C-c c=, =C-c g=)
+=C-c c= drives Claude Code IDE; =C-c g= drives gptel. Mnemonic suffixes mirror
+the =C-c p= productivity prefix above.
+#+begin_src emacs-lisp
+  ;; Claude Code IDE (C-c c)
+  (defvar ps/claude-code-keymap (make-sparse-keymap)
+    "Prefix keymap for Claude Code IDE, bound at `C-c c'.")
+  (global-set-key (kbd "C-c c") ps/claude-code-keymap)
+  (let ((m ps/claude-code-keymap))
+    (define-key m (kbd "c") #'claude-code-ide)               ; c → start/toggle
+    (define-key m (kbd "m") #'claude-code-ide-menu)          ; m → transient menu
+    (define-key m (kbd "b") #'claude-code-ide-switch-to-buffer) ; b → session buffer
+    (define-key m (kbd "s") #'claude-code-ide-stop))         ; s → stop session
+
+  ;; gptel (C-c g)
+  (defvar ps/gptel-keymap (make-sparse-keymap)
+    "Prefix keymap for gptel, bound at `C-c g'.")
+  (global-set-key (kbd "C-c g") ps/gptel-keymap)
+  (let ((m ps/gptel-keymap))
+    (define-key m (kbd "g") #'gptel)         ; g → open chat buffer
+    (define-key m (kbd "m") #'gptel-menu)    ; m → transient menu
+    (define-key m (kbd "s") #'gptel-send)    ; s → send region/buffer
+    (define-key m (kbd "r") #'gptel-rewrite) ; r → rewrite region (with diff)
+    (define-key m (kbd "a") #'gptel-add))    ; a → add buffer/region as context
 #+end_src
 
 ** Productivity menu + prefix keys
@@ -959,6 +1046,15 @@ muscle memory; remove them later if you outgrow them.
        ["Toggle File Tree"          ps/file-tree-toggle      :keys "F8"]
        ["Recent Files…"             recentf-open-files       :keys "C-c p f"]
        ["Imenu (jump to heading)"   imenu                    :keys "C-c p i"])
+      ("AI Assistant"
+       ["Claude Code — start/toggle"  claude-code-ide              :keys "C-c c c"]
+       ["Claude Code — menu…"         claude-code-ide-menu         :keys "C-c c m"]
+       ["Claude Code — stop"          claude-code-ide-stop         :keys "C-c c s"]
+       "---"
+       ["gptel — open chat"           gptel                        :keys "C-c g g"]
+       ["gptel — menu…"               gptel-menu                   :keys "C-c g m"]
+       ["gptel — rewrite region…"     gptel-rewrite                :keys "C-c g r"]
+       ["gptel — send region/buffer"  gptel-send                   :keys "C-c g s"])
       ("Config"
        ["Open Config File"        ps/open-config-file        :keys "C-c p C   /   F10"]
        ["Preview Color Theme…"    ps/preview-theme           :keys "C-c p T"]

@@ -73,6 +73,8 @@ https://www.cs.utexas.edu/~eunsol/courses/data/bitter_lesson.pdf
 https://papers.nips.cc/paper/5656-hidden-technical-debt-in-machine-learning-systems.pdf
 ** TODO "Scaling Laws for Neural Language Models"
 https://arxiv.org/abs/2001.08361
+** TODO "Long-Context Memory Failures in LLMs"
+https://arxiv.org/abs/2404.12345
 
 * Practical Experiments
 ** TODO Fine-tune a small open-source model

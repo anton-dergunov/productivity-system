@@ -1,8 +1,5 @@
 #+TITLE: Inbox
 
-Interesting article about long-context memory failures in LLMs:
-https://arxiv.org/abs/2404.12345
-
 Need to investigate whether SQLite FTS5 could replace current search setup.
 
 Idea:
@@ -19,7 +16,14 @@ Potential blog topics:
 - Why notebooks become unmaintainable
 - Long-context myths
 
-Look into MCP servers and sampling.
+** TODO Research MCP servers and sampling parameters        :research:llm:
+SCHEDULED: <2026-05-28 Wed>
+
+Topics to explore:
+- MCP (Model Context Protocol) servers and integration patterns
+- Sampling parameters (temperature, top_p, top_k) across Claude models
+- When to use different sampling strategies
+- MCP use cases for productivity systems
 
 Interesting:
 https://github.com/microsoft/markitdown

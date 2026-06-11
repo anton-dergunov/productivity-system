@@ -4,11 +4,13 @@
 # On first run, packages are downloaded into elpa/ inside this repo.
 # local.el in the repo root points org files at samples/realistic/.
 #
-# Pass --emacs <variant> to pick which Emacs build to run (default: default):
-#   default - /Applications/Emacs.app (override with EMACS_BIN)
-#   plus    - emacs-plus@30 (Homebrew formula)
-#   latest  - official latest build from emacsformacosx.com,
-#             installed to ~/Applications/Emacs-latest
+# Pass --emacs <path> to use a custom Emacs binary (default: EMACS_BIN env var or
+# /Applications/Emacs.app). Examples:
+#   ./run_emacs_dev.sh --emacs ~/Applications/Emacs-latest
+#   EMACS_BIN=/path/to/emacs ./run_emacs_dev.sh
+#
+# To use Homebrew emacs-plus@30:
+#   EMACS_BIN="$(brew --prefix)/opt/emacs-plus@30/Emacs.app/Contents/MacOS/Emacs" ./run_emacs_dev.sh
 #
 # Pass --sandbox to copy the repo (without .git) to a temp dir under /tmp and
 # run from there instead. Useful for testing without risking commits to this
@@ -19,13 +21,12 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 
-EMACS_VARIANT="default"
 SANDBOX=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --emacs)
-      EMACS_VARIANT="$2"
+      EMACS_BIN="$2"
       shift 2
       ;;
     --sandbox)
@@ -38,21 +39,15 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-case "$EMACS_VARIANT" in
-  default)
-    EMACS_BIN="${EMACS_BIN:-/Applications/Emacs.app/Contents/MacOS/Emacs}"
-    ;;
-  plus)
-    EMACS_BIN="$(brew --prefix)/opt/emacs-plus@30/Emacs.app/Contents/MacOS/Emacs"
-    ;;
-  latest)
-    EMACS_BIN="$HOME/Applications/Emacs-latest/Emacs.app/Contents/MacOS/Emacs"
-    ;;
-  *)
-    echo "Unknown --emacs variant: $EMACS_VARIANT (expected default|plus|latest)" >&2
-    exit 1
-    ;;
-esac
+# If --emacs not provided, check EMACS_BIN env var, else use default
+if [[ -z "${EMACS_BIN:-}" ]]; then
+  EMACS_BIN="/Applications/Emacs.app/Contents/MacOS/Emacs"
+fi
+
+# If a directory path was passed (e.g. ~/Applications/Emacs-latest), append the binary path
+if [[ -d "$EMACS_BIN" ]]; then
+  EMACS_BIN="$EMACS_BIN/Contents/MacOS/Emacs"
+fi
 
 LOCAL_EL="$REPO_DIR/local.el"
 if [ ! -f "$LOCAL_EL" ]; then
