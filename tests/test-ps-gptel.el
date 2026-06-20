@@ -85,5 +85,41 @@ Stub `ps/gptel--read-credentials' so no Keychain/subprocess is touched."
                    ps/gptel-claude-code-identity))
     (should (= (length (plist-get twice :system)) 2))))
 
+;;; Notes path scoping
+
+(ert-deftest ps/gptel-test-notes-resolve-path-within-root ()
+  "A relative path inside the notes root resolves to its absolute path."
+  (let ((root "/notes/"))
+    (should (equal (ps/gptel--notes-resolve-path root "Areas/work.org")
+                    "/notes/Areas/work.org"))
+    (should (equal (ps/gptel--notes-resolve-path root ".") "/notes"))
+    (should (equal (ps/gptel--notes-resolve-path root nil) "/notes"))))
+
+(ert-deftest ps/gptel-test-notes-resolve-path-escape-rejected ()
+  "Paths that escape the notes root via `..' or absolute paths are rejected."
+  (let ((root "/notes/"))
+    (should-error (ps/gptel--notes-resolve-path root "../etc/passwd")
+                   :type 'user-error)
+    (should-error (ps/gptel--notes-resolve-path root "/etc/passwd")
+                   :type 'user-error)
+    (should-error (ps/gptel--notes-resolve-path root "Areas/../../etc/passwd")
+                   :type 'user-error)))
+
+;;; Tool registration
+
+(ert-deftest ps/gptel-test-register-tool-replaces-by-name ()
+  "Re-registering a tool with the same name replaces the old one."
+  (skip-unless (locate-library "gptel"))
+  (require 'gptel)
+  (let ((gptel-tools nil))
+    (ps/gptel--register-tool (gptel-make-tool
+                               :name "search_notes" :function #'ignore
+                               :description "v1" :args nil :category "notes"))
+    (ps/gptel--register-tool (gptel-make-tool
+                               :name "search_notes" :function #'ignore
+                               :description "v2" :args nil :category "notes"))
+    (should (= (length gptel-tools) 1))
+    (should (equal (gptel-tool-description (car gptel-tools)) "v2"))))
+
 (provide 'test-ps-gptel)
 ;;; test-ps-gptel.el ends here

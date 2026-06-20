@@ -52,6 +52,8 @@ Sets =my-org-base-directory=. Copy =local.el.template= → =local.el= on first r
 All self-contained logic lives in =lisp/ps-*.el=.
 #+begin_src emacs-lisp
   (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
+  (unless (package-installed-p 'plz)
+    (package-install 'plz))
   (require 'ps-utils)
   (require 'ps-links)
   (require 'ps-done)
@@ -66,6 +68,8 @@ All self-contained logic lives in =lisp/ps-*.el=.
   (require 'ps-file-tree)
   (require 'ps-file-tree-icons)
   (require 'ps-gptel)
+  (require 'ps-org-db)
+  (require 'ps-claude)
 #+end_src
 
 * Settings
@@ -188,14 +192,64 @@ Path to the Python script invoked from the agenda finalize hook.
         (expand-file-name "scripts/org_emoji_matcher.py" user-emacs-directory))
 #+end_src
 
+** Claude Code (ps-claude.el)
+=ps/claude-window-width= is the side-window width in columns (the upstream
+default of 100 is quite wide). =ps/claude-resize-debounce-delay= controls how
+long Emacs waits, after a window resize settles, before re-syncing the
+terminal's dimensions with the =claude= process — this fixes garbled output
+that otherwise persists until a second resize.
+#+begin_src emacs-lisp
+  (setq ps/claude-window-width 90
+        ps/claude-resize-debounce-delay 0.3)
+#+end_src
+
 ** gptel / Claude (ps-gptel.el)
 gptel talks to Claude through the Claude Pro/Max subscription (reusing the OAuth
 token Claude Code stores in the macOS Keychain), so there is no separate
 pay-per-token API cost. =ps/gptel-default-model= is the model used by default;
 =ps/gptel-models= are the choices offered in gptel's model switcher.
+=ps/gptel-quick-model= is used by the no-session "quick ask" command
+(=C-c g q=); =ps/gptel-notes-directory= is the org notes directory exposed to
+gptel via context (=C-c g n=) and tools (defaults to =my-org-base-directory=).
+
+Optional extra backends are registered automatically when their credentials
+are present, and then appear in =gptel-menu= (=C-c g m=) for switching:
+- *Gemini* (free tier): add an entry for host
+  ~generativelanguage.googleapis.com~ to =~/.authinfo.gpg= with your AI
+  Studio API key, e.g. ~machine generativelanguage.googleapis.com login apikey password <key>~.
+- *Local Ollama*: registered automatically if a server answers on
+  =ps/gptel-ollama-host=.
+- *Anthropic API key* (paid, fallback if the OAuth bridge breaks): add an
+  entry for host ~api.anthropic.com~ to =~/.authinfo.gpg= the same way.
 #+begin_src emacs-lisp
   (setq ps/gptel-default-model 'claude-opus-4-8
-        ps/gptel-models '(claude-opus-4-8 claude-sonnet-4-6 claude-haiku-4-5))
+        ps/gptel-models '(claude-opus-4-8 claude-sonnet-4-6 claude-haiku-4-5)
+        ps/gptel-quick-model 'claude-haiku-4-5
+        ps/gptel-notes-directory my-org-base-directory
+        ps/gptel-gemini-models '(gemini-2.5-flash gemini-2.5-flash-lite)
+        ps/gptel-ollama-host "localhost:11434"
+        ps/gptel-ollama-models '(llama3.2:latest))
+#+end_src
+
+** Semantic search (ps-org-db.el)
+Semantic, full-text, and hybrid search over the notes directory, via a local
+org-db-v3 server (run =scripts/setup-org-db.sh= once to set it up).
+=ps/org-db-directory= is the notes tree to index (defaults to the same
+directory as =ps/gptel-notes-directory=); =ps/org-db-vendor-directory= is
+where org-db-v3 was cloned. =org-db-v3-server-port= is the local server's
+port. =ps/org-db-rrf-k= and =ps/org-db-search-limit= tune the hybrid
+(Reciprocal Rank Fusion) search in =* AI Assistant / Semantic search=.
+
+The server starts automatically (and lazily) on first save/search, and is
+safe with multiple Emacs instances. It is *not* stopped automatically on
+exit, since other Emacs instances may still be using it — stop it explicitly
+with =M-x ps/org-db-stop-server= if needed.
+#+begin_src emacs-lisp
+  (setq ps/org-db-directory my-org-base-directory
+        ps/org-db-vendor-directory (expand-file-name "elpa/org-db-v3" user-emacs-directory)
+        org-db-v3-server-port 8765
+        ps/org-db-search-limit 10
+        ps/org-db-rrf-k 60)
 #+end_src
 
 * Editor & UI
@@ -836,7 +890,9 @@ natively — no API key or token handling needed.
     :config
     (setq claude-code-ide-terminal-backend 'eat)
     ;; Let Claude use Emacs (selection, diagnostics) and show edits as diffs.
-    (claude-code-ide-emacs-tools-setup))
+    (claude-code-ide-emacs-tools-setup)
+    ;; Window width + resize/garbled-output fixes; see lisp/ps-claude.el.
+    (ps/claude-setup))
 #+end_src
 
 ** gptel (ps-gptel.el)
@@ -849,6 +905,16 @@ above. Chat buffers open in =org-mode= so replies are normal Org text.
     :config
     (setq gptel-default-mode 'org-mode)
     (ps/gptel-setup))
+#+end_src
+
+** Semantic search (ps-org-db.el)
+Enables background indexing of =ps/org-db-directory= on save (see
+=* Settings / Semantic search= above), powering
+=ps/org-db-semantic-search=, =ps/org-db-fulltext-search=, and the hybrid
+=ps/org-db-search= (=C-c g e=/=f=/=h=), plus the gptel
+=semantic_search_notes= tool.
+#+begin_src emacs-lisp
+  (ps/org-db-enable)
 #+end_src
 
 * Keybindings & Menu
@@ -944,7 +1010,14 @@ the =C-c p= productivity prefix above.
     (define-key m (kbd "m") #'gptel-menu)    ; m → transient menu
     (define-key m (kbd "s") #'gptel-send)    ; s → send region/buffer
     (define-key m (kbd "r") #'gptel-rewrite) ; r → rewrite region (with diff)
-    (define-key m (kbd "a") #'gptel-add))    ; a → add buffer/region as context
+    (define-key m (kbd "a") #'gptel-add)     ; a → add buffer/region as context
+    (define-key m (kbd "n") #'ps/gptel-add-notes)    ; n → add org notes as context
+    (define-key m (kbd "x") #'ps/gptel-clear-context) ; x → clear context
+    (define-key m (kbd "q") #'ps/gptel-quick)        ; q → quick one-off question
+    (define-key m (kbd "e") #'ps/org-db-semantic-search) ; e → sEmantic search
+    (define-key m (kbd "f") #'ps/org-db-fulltext-search) ; f → full-text search
+    (define-key m (kbd "h") #'ps/org-db-search)          ; h → hybrid search
+    (define-key m (kbd "i") #'ps/org-db-sync-directory)) ; i → index/sync notes
 #+end_src
 
 ** Productivity menu + prefix keys
@@ -1054,7 +1127,15 @@ muscle memory; remove them later if you outgrow them.
        ["gptel — open chat"           gptel                        :keys "C-c g g"]
        ["gptel — menu…"               gptel-menu                   :keys "C-c g m"]
        ["gptel — rewrite region…"     gptel-rewrite                :keys "C-c g r"]
-       ["gptel — send region/buffer"  gptel-send                   :keys "C-c g s"])
+       ["gptel — send region/buffer"  gptel-send                   :keys "C-c g s"]
+       ["gptel — quick question…"     ps/gptel-quick               :keys "C-c g q"]
+       ["gptel — add org notes"       ps/gptel-add-notes           :keys "C-c g n"]
+       ["gptel — clear context"       ps/gptel-clear-context       :keys "C-c g x"]
+       "---"
+       ["Semantic search…"            ps/org-db-semantic-search    :keys "C-c g e"]
+       ["Full-text search…"           ps/org-db-fulltext-search    :keys "C-c g f"]
+       ["Hybrid search…"              ps/org-db-search             :keys "C-c g h"]
+       ["Sync notes index"            ps/org-db-sync-directory     :keys "C-c g i"])
       ("Config"
        ["Open Config File"        ps/open-config-file        :keys "C-c p C   /   F10"]
        ["Preview Color Theme…"    ps/preview-theme           :keys "C-c p T"]
