@@ -20,6 +20,9 @@
 (declare-function treemacs-canonical-path "treemacs-core-utils")
 (declare-function treemacs--filename "treemacs-core-utils")
 (declare-function org-find-exact-headline-in-buffer "org")
+;; Optional: git-sync status is appended to the file-tree mode line when the
+;; module is loaded.  Guarded with `fboundp', so this file stays standalone.
+(declare-function ps/git-sync--modeline "ps-git-sync" ())
 (require 'subr-x)
 
 ;;; Customization
@@ -35,12 +38,57 @@ A file or directory is hidden if its name matches any regexp here."
   :type '(repeat regexp)
   :group 'ps-file-tree)
 
+(defcustom ps/file-tree-file-sets
+  '(("All" . (:include nil :exclude nil)))
+  "Named file-visibility sets for the file tree.
+Each entry is (NAME . PLIST) where PLIST has:
+  :include - list of regexps; if non-nil, only paths matching one of these
+             (or directories containing a matching descendant) are shown.
+  :exclude - list of regexps; paths matching any of these are hidden,
+             regardless of :include.
+Regexps are matched as substrings against the absolute path.
+
+This is purely a display filter for the file tree — it does not affect the
+agenda or any other part of the system, which continue to see every file.
+
+The first entry should remain (\"All\" . (:include nil :exclude nil)),
+showing everything. It is also used as the fallback set by
+`ps/file-tree--ensure-valid-set' when `ps/file-tree-current-set' names a
+set that no longer exists.
+
+Set definitions should filter within existing top-level project
+directories, not target those directories themselves — switching sets
+re-renders existing projects but does not recompute the project list."
+  :type '(alist :key-type string
+                 :value-type (plist :key-type symbol :value-type (repeat regexp)))
+  :group 'ps-file-tree)
+
+(defcustom ps/file-tree-current-set "All"
+  "Name of the currently active file set (a key in `ps/file-tree-file-sets').
+Persisted across restarts via `savehist-additional-variables'. If the
+saved name is no longer present in `ps/file-tree-file-sets',
+`ps/file-tree--ensure-valid-set' falls back to the first entry there."
+  :type 'string
+  :group 'ps-file-tree)
+
+(defcustom ps/file-tree-set-applies-to-agenda nil
+  "When non-nil, the active file set also restricts the agenda.
+On top of filtering the file tree's display, the files hidden by
+`ps/file-tree-current-set' (per `ps/file-tree--set-hidden-p') are also
+excluded from `org-agenda-files' and from the standalone Conflicts/
+Availability buffers (`ps/show-conflicts', `ps/org-show-availability').
+
+Toggle with `ps/file-tree-toggle-agenda-filter'. Persisted across restarts
+via `savehist-additional-variables', like `ps/file-tree-current-set'."
+  :type 'boolean
+  :group 'ps-file-tree)
+
 (defcustom ps/file-tree-use-custom-icons t
   "Whether to use custom category icons in the file tree.
 When non-nil (the default), the custom \"ps-file-tree\" icon theme
-(`ps/file-tree-icons-apply') is loaded, mapping `<Category>.org' files to
-SVGs in `ps/file-tree-icon-dirs'. When nil, treemacs's built-in \"Default\"
-theme (generic file/folder icons) is used instead."
+(`ps/file-tree-icons-apply') is loaded, drawing `<Category>.org' icons from
+the Material Symbols font per `ps/material-icons-category-map'. When nil,
+treemacs's built-in \"Default\" theme (generic file/folder icons) is used."
   :type 'boolean
   :group 'ps-file-tree)
 
@@ -50,29 +98,79 @@ May be fractional, e.g. 0.5 for half a character width."
   :type 'number
   :group 'ps-file-tree)
 
-(defcustom ps/file-tree-icon-height 20
-  "Height in pixels every file-tree icon is scaled to.
-Scaling preserves each icon's aspect ratio (only the height is fixed).
-A single shared height lets `ps/file-tree-icon-ascent' align all icons
-consistently regardless of their source size."
+(defcustom ps/file-tree-icon-ascent 75
+  "Vertical alignment of file-tree icons, as a percentage above the baseline.
+Passed as the `:ascent' of every file-tree icon image (0-100), root projects
+and files alike. Higher values raise the icon relative to its label; lower
+values drop it. Icon size is `ps/material-icons-height' (auto-derived from the
+font), so this one value stays valid across font sizes."
   :type 'integer
   :group 'ps-file-tree)
 
-(defcustom ps/file-tree-icon-ascent 75
-  "Vertical alignment of file-tree icons, as a percentage above the baseline.
-Passed as the `:ascent' of every icon image (0-100). Higher values raise
-the icon relative to its label; lower values drop it. Tune this so icons
-line up vertically with their text."
-  :type 'integer
+(defcustom ps/file-tree-icon-fallback-dir
+  (expand-file-name "icons" user-emacs-directory)
+  "Directory holding the no-font fallback SVGs.
+Used only when `ps/material-icons-font-family' is not installed: files use
+`draft.svg' and project roots use `folder_open.svg'/`folder.svg' from here.
+Each file is named after the Material Symbols glyph it stands in for."
+  :type 'directory
   :group 'ps-file-tree)
 
 ;;; Ignore predicate
 
-(defun ps/file-tree--ignored-p (filename _absolute-path)
-  "Return non-nil if FILENAME should be hidden from the file tree.
-Matched against `ps/file-tree-ignored-files'."
-  (cl-some (lambda (rx) (string-match-p rx filename))
-           ps/file-tree-ignored-files))
+(defun ps/file-tree--current-set-spec ()
+  "Return the plist for `ps/file-tree-current-set', or nil if not found."
+  (cdr (assoc ps/file-tree-current-set ps/file-tree-file-sets)))
+
+(defun ps/file-tree--path-matches-any-p (path regexps)
+  "Return non-nil if PATH contains a substring match for any of REGEXPS."
+  (cl-some (lambda (rx) (string-match-p rx path)) regexps))
+
+(defun ps/file-tree--descendant-included-p (dir include-regexps)
+  "Return non-nil if DIR has a descendant whose path matches INCLUDE-REGEXPS.
+Recurses into subdirectories; stops at the first match."
+  (cl-some
+   (lambda (entry)
+     (let ((name (file-name-nondirectory entry)))
+       (unless (member name '("." ".."))
+         (or (ps/file-tree--path-matches-any-p entry include-regexps)
+             (and (file-directory-p entry)
+                  (ps/file-tree--descendant-included-p entry include-regexps))))))
+   (and (file-directory-p dir) (directory-files dir t))))
+
+(defun ps/file-tree--set-hidden-p (absolute-path)
+  "Return non-nil if ABSOLUTE-PATH is hidden by the current file set.
+Hidden if ABSOLUTE-PATH matches the current set's :exclude regexps, or if
+:include is non-nil and neither ABSOLUTE-PATH nor (for directories) any of
+its descendants matches an :include regexp."
+  (let ((spec (ps/file-tree--current-set-spec)))
+    (when spec
+      (let ((include (plist-get spec :include))
+            (exclude (plist-get spec :exclude)))
+        (or
+         (and exclude (ps/file-tree--path-matches-any-p absolute-path exclude))
+         (and include
+              (not (ps/file-tree--path-matches-any-p absolute-path include))
+              (not (and (file-directory-p absolute-path)
+                        (ps/file-tree--descendant-included-p absolute-path include)))))))))
+
+(defun ps/file-tree-filter-files (files)
+  "Return FILES, minus those hidden by the active file set, if enabled.
+When `ps/file-tree-set-applies-to-agenda' is nil, FILES is returned
+unchanged. Used to scope `org-agenda-files' and the standalone Conflicts/
+Availability buffers to the active file set."
+  (if ps/file-tree-set-applies-to-agenda
+      (seq-remove #'ps/file-tree--set-hidden-p files)
+    files))
+
+(defun ps/file-tree--ignored-p (filename absolute-path)
+  "Return non-nil if FILENAME/ABSOLUTE-PATH should be hidden from the file tree.
+Hidden if FILENAME matches `ps/file-tree-ignored-files', or if
+ABSOLUTE-PATH is hidden by the current file set
+(`ps/file-tree-file-sets' / `ps/file-tree-current-set')."
+  (or (cl-some (lambda (rx) (string-match-p rx filename))
+               ps/file-tree-ignored-files)
+      (ps/file-tree--set-hidden-p absolute-path)))
 
 ;;;###autoload
 (defun ps/file-tree-setup-ignore ()
@@ -126,6 +224,94 @@ Suitable for `treemacs-directory-name-transformer'."
   "Toggle the file tree window."
   (interactive)
   (treemacs))
+
+;;; File sets
+
+(defun ps/file-tree--ensure-valid-set ()
+  "Reset `ps/file-tree-current-set' to the default if it names no set.
+Falls back to the first entry of `ps/file-tree-file-sets'."
+  (unless (assoc ps/file-tree-current-set ps/file-tree-file-sets)
+    (setq ps/file-tree-current-set (car (car ps/file-tree-file-sets)))))
+
+(defun ps/file-tree--refresh ()
+  "Re-render the file tree, re-applying the active file set's filters.
+Collapses and re-expands every project so each directory is rescanned
+against the current `ps/file-tree-current-set' rather than reusing
+already-rendered nodes."
+  (when-let* ((buf (and (fboundp 'treemacs-get-local-buffer)
+                         (treemacs-get-local-buffer))))
+    (with-current-buffer buf
+      (ps/file-tree-collapse-all)
+      (ps/file-tree-expand-all))))
+
+;;;###autoload
+(defun ps/file-tree-set-file-set (name)
+  "Switch the active file set to NAME and refresh the file tree."
+  (interactive
+   (list (completing-read "File set: "
+                           (mapcar #'car ps/file-tree-file-sets)
+                           nil t nil nil ps/file-tree-current-set)))
+  (setq ps/file-tree-current-set name)
+  (ps/file-tree--ensure-valid-set)
+  (ps/file-tree--refresh)
+  (when (fboundp 'ps/agenda-files-refresh)
+    (ps/agenda-files-refresh))
+  (force-mode-line-update t))
+
+(defun ps/file-tree-cycle-file-set ()
+  "Switch to the next file set in `ps/file-tree-file-sets', wrapping around."
+  (interactive)
+  (let* ((names (mapcar #'car ps/file-tree-file-sets))
+         (pos (or (cl-position ps/file-tree-current-set names :test #'equal) -1))
+         (next (nth (mod (1+ pos) (length names)) names)))
+    (ps/file-tree-set-file-set next)))
+
+;;;###autoload
+(defun ps/file-tree-toggle-agenda-filter ()
+  "Toggle whether the active file set also restricts the agenda.
+See `ps/file-tree-set-applies-to-agenda'."
+  (interactive)
+  (setq ps/file-tree-set-applies-to-agenda
+        (not ps/file-tree-set-applies-to-agenda))
+  (when (fboundp 'ps/agenda-files-refresh)
+    (ps/agenda-files-refresh))
+  (force-mode-line-update t)
+  (message "File set %s restricts the agenda"
+           (if ps/file-tree-set-applies-to-agenda "now" "no longer")))
+
+;;; Mode line
+
+(defun ps/file-tree--modeline-click (event)
+  "Show a popup menu of file sets and switch to the one EVENT selects."
+  (interactive "e")
+  (let* ((names (mapcar #'car ps/file-tree-file-sets))
+         (menu (list "File Set" (cons "File Sets" (mapcar (lambda (n) (cons n n)) names))))
+         (choice (x-popup-menu event menu)))
+    (when choice
+      (ps/file-tree-set-file-set choice))))
+
+(defun ps/file-tree--modeline ()
+  "Return the file-tree mode line: file-set selector + git-sync status.
+The file-set selector is clickable (mouse-1 switches sets).  The git-sync
+status (text label + tooltip) is appended when `ps-git-sync' is loaded."
+  (let ((fileset
+         (propertize (format " %s ▾%s" ps/file-tree-current-set
+                             (if ps/file-tree-set-applies-to-agenda " 📅" ""))
+                     'face 'mode-line-emphasis
+                     'mouse-face 'mode-line-highlight
+                     'help-echo "mouse-1: switch file set"
+                     'local-map
+                     ;; mouse-3 (and mouse-2) are disabled globally by
+                     ;; `ps/mode-line--disable-destructive-mouse'.
+                     (let ((map (make-sparse-keymap)))
+                       (define-key map [mode-line mouse-1] #'ps/file-tree--modeline-click)
+                       map)))
+        (sync (and (fboundp 'ps/git-sync--modeline)
+                   (ps/git-sync--modeline))))
+    ;; No separator before the sync status: the `▾' already separates it.
+    (if (and sync (> (length sync) 0))
+        (concat fileset " " sync)
+      fileset)))
 
 ;;; Expand / collapse all
 
@@ -230,10 +416,46 @@ with nothing to open (project roots, plain directories)."
                       heading (find-file-noselect file))))))
     (_ nil)))
 
+(defun ps/file-tree--target-window ()
+  "Return the window where file-tree clicks should open files.
+This is the most-recently-used real editor window: never the file tree, a
+side window, or a dedicated window.  Excluding side/dedicated windows (rather
+than only the tree by identity) ensures files never land in a dedicated window,
+where Emacs would split off a new one — which is what made windows multiply and
+the target alternate.  Returns nil if no editor window exists yet."
+  (let ((cands (seq-filter
+                (lambda (w)
+                  (and (not (window-dedicated-p w))
+                       (not (window-parameter w 'window-side))))
+                (window-list nil 'no-mini))))
+    (car (sort cands (lambda (a b)
+                       (> (window-use-time a) (window-use-time b)))))))
+
+(defun ps/file-tree-visit-file (file &optional pos)
+  "Visit FILE in the most-recently-used editor window, then optionally go to POS.
+Reuses a window already showing FILE; otherwise the most-recently-used real
+editor window (never the file tree or any side/dedicated window), creating one
+only if none exists.  With POS, move point there (revealing it in Org buffers).
+
+Note: only consult `get-buffer-window' when FILE actually has a buffer — calling
+it on a nil buffer returns the *current* window (the tree at click time), which
+would make Emacs split a new window to escape the dedicated side window."
+  (let* ((buf (get-file-buffer file))
+         (win (or (and buf (get-buffer-window buf))
+                  (ps/file-tree--target-window))))
+    (when (window-live-p win) (select-window win))
+    (find-file file)
+    (when pos
+      (goto-char pos)
+      (when (eq major-mode 'org-mode)
+        (if (fboundp 'org-fold-show-context)
+            (org-fold-show-context)
+          (org-show-context))))))
+
 (defun ps/file-tree--click-label ()
   "Handle a label click on the node at point.
-Files and org headings (leaf or intermediate) open on the right. Project
-roots and plain directories toggle expand/collapse, as before."
+Files and org headings (leaf or intermediate) open in the editor window.
+Project roots and plain directories toggle expand/collapse, as before."
   (when-let* ((btn (treemacs-current-button))
               (state (treemacs-button-get btn :state)))
     (if (memq state '(root-node-open root-node-closed
@@ -241,17 +463,7 @@ roots and plain directories toggle expand/collapse, as before."
         (treemacs-toggle-node)
       (when-let* ((target (ps/file-tree--node-target btn))
                   (file (car target)))
-        (let ((pos (cdr target)))
-          (if-let* ((win (get-buffer-window (get-file-buffer file))))
-              (select-window win)
-            (other-window 1))
-          (find-file file)
-          (when pos
-            (goto-char pos)
-            (when (eq major-mode 'org-mode)
-              (if (fboundp 'org-fold-show-context)
-                  (org-fold-show-context)
-                (org-show-context)))))))))
+        (ps/file-tree-visit-file file (cdr target))))))
 
 ;;;###autoload
 (defun ps/file-tree-click (event)

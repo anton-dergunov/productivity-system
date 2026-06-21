@@ -2,6 +2,7 @@
 
 (require 'cl-lib)
 (require 'calendar)
+(require 'ps-file-tree)
 
 ;;; Customization
 
@@ -125,9 +126,12 @@ Returns a list of `ps/conflict--event' structs."
 
 (defun ps/conflicts--load-events (directory)
   "Load timed events from all .org files in DIRECTORY (recursive).
-Returns a list of `ps/conflict--event' structs."
+Returns a list of `ps/conflict--event' structs. The file list is passed
+through `ps/file-tree-filter-files', so it is scoped to the active file
+set when `ps/file-tree-set-applies-to-agenda' is enabled."
   (let ((events '()))
-    (dolist (file (directory-files-recursively directory "\\.org$"))
+    (dolist (file (ps/file-tree-filter-files
+                   (directory-files-recursively directory "\\.org$")))
       (setq events (append events
                             (ps/conflicts--extract-events-from-file file))))
     events))
@@ -405,6 +409,11 @@ Press RET or click on any task to jump to it in its org file."
 
 ;;; Agenda integration (async via idle timer)
 
+;; Let-bound by the agenda custom commands to the view kind (`agenda' / `calendar'
+;; / nil); active during `org-agenda-finalize-hook'.  Used to run the conflict
+;; check for the Agenda only.
+(defvar ps/agenda-layout-view-kind)
+
 (defvar ps/conflicts--agenda-timer nil
   "Pending idle timer for the agenda conflict check.")
 
@@ -426,11 +435,15 @@ Press RET or click on any task to jump to it in its org file."
 
 (defun ps/conflicts--agenda-schedule-check ()
   "Schedule an idle-time conflict check after the agenda finishes rendering.
-Cancels any previously pending check first."
-  (when ps/conflicts--agenda-timer
-    (cancel-timer ps/conflicts--agenda-timer))
-  (setq ps/conflicts--agenda-timer
-        (run-with-idle-timer 1.0 nil #'ps/conflicts--agenda-check)))
+Cancels any previously pending check first.  Runs only for the Agenda view —
+conflicts belong there; the Calendar and Tasks views skip this full re-scan of
+every file (it is span-independent work and briefly freezes Emacs)."
+  (when (eq (and (boundp 'ps/agenda-layout-view-kind) ps/agenda-layout-view-kind)
+            'agenda)
+    (when ps/conflicts--agenda-timer
+      (cancel-timer ps/conflicts--agenda-timer))
+    (setq ps/conflicts--agenda-timer
+          (run-with-idle-timer 1.0 nil #'ps/conflicts--agenda-check))))
 
 (provide 'ps-conflicts)
 ;;; ps-conflicts.el ends here

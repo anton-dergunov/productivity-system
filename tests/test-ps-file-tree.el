@@ -5,6 +5,21 @@
 (add-to-list 'load-path "lisp")
 (require 'ps-file-tree)
 
+(defmacro ps/file-tree-test--with-base-dir (entries &rest body)
+  "Create a temp dir containing ENTRIES, bind `dir', run BODY, then clean up.
+Each entry is a name; names ending in \"/\" are created as subdirectories,
+others as empty files."
+  (declare (indent 1))
+  `(let ((dir (make-temp-file "ps-file-tree-" t)))
+     (unwind-protect
+         (progn
+           (dolist (name ,entries)
+             (if (string-suffix-p "/" name)
+                 (make-directory (expand-file-name name dir) t)
+               (with-temp-file (expand-file-name name dir) (insert ""))))
+           ,@body)
+       (delete-directory dir t))))
+
 ;;; -------------------------------------------------------
 ;;; ps/file-tree--ignored-p
 ;;; -------------------------------------------------------
@@ -31,23 +46,138 @@
     (should-not (ps/file-tree--ignored-p "init.org" "/some/path/init.org"))))
 
 ;;; -------------------------------------------------------
-;;; ps/file-tree--list-subdirs
+;;; ps/file-tree--set-hidden-p / file sets
 ;;; -------------------------------------------------------
 
-(defmacro ps/file-tree-test--with-base-dir (entries &rest body)
-  "Create a temp dir containing ENTRIES, bind `dir', run BODY, then clean up.
-Each entry is a name; names ending in \"/\" are created as subdirectories,
-others as empty files."
-  (declare (indent 1))
-  `(let ((dir (make-temp-file "ps-file-tree-" t)))
-     (unwind-protect
-         (progn
-           (dolist (name ,entries)
-             (if (string-suffix-p "/" name)
-                 (make-directory (expand-file-name name dir) t)
-               (with-temp-file (expand-file-name name dir) (insert ""))))
-           ,@body)
-       (delete-directory dir t))))
+(ert-deftest ps/file-tree--set-hidden-default-all-shows-everything ()
+  "The default \"All\" set (nil/nil) hides nothing."
+  (let ((ps/file-tree-file-sets '(("All" . (:include nil :exclude nil))))
+        (ps/file-tree-current-set "All"))
+    (should-not (ps/file-tree--set-hidden-p "/base/Areas/Secret.org"))))
+
+(ert-deftest ps/file-tree--set-hidden-exclude-only ()
+  "A path matching :exclude is hidden; non-matching paths are not."
+  (let ((ps/file-tree-file-sets
+         '(("NoSecrets" . (:include nil :exclude ("Secret")))))
+        (ps/file-tree-current-set "NoSecrets"))
+    (should (ps/file-tree--set-hidden-p "/base/Areas/Secret.org"))
+    (should-not (ps/file-tree--set-hidden-p "/base/Areas/Career.org"))))
+
+(ert-deftest ps/file-tree--set-hidden-include-only-hides-non-matching ()
+  "With :include set, a non-matching leaf path is hidden."
+  (let ((ps/file-tree-file-sets
+         '(("Work" . (:include ("/Work/") :exclude nil))))
+        (ps/file-tree-current-set "Work"))
+    (should-not (ps/file-tree--set-hidden-p "/base/Areas/Work/Project.org"))
+    (should (ps/file-tree--set-hidden-p "/base/Areas/Personal/Diary.org"))))
+
+(ert-deftest ps/file-tree--set-hidden-include-shows-dir-with-whitelisted-descendant ()
+  "A directory with a whitelisted descendant remains visible for navigation."
+  (let ((ps/file-tree-file-sets
+         '(("Work" . (:include ("Project\\.org") :exclude nil))))
+        (ps/file-tree-current-set "Work"))
+    (ps/file-tree-test--with-base-dir '("Areas/" "Areas/Work/" "Areas/Work/Project.org" "Areas/Other.org")
+      ;; "Areas" itself doesn't match, but contains a descendant that does.
+      (should-not (ps/file-tree--set-hidden-p (expand-file-name "Areas" dir)))
+      (should-not (ps/file-tree--set-hidden-p (expand-file-name "Areas/Work" dir)))
+      (should-not (ps/file-tree--set-hidden-p (expand-file-name "Areas/Work/Project.org" dir)))
+      ;; Sibling file with no matching descendant and no match itself: hidden.
+      (should (ps/file-tree--set-hidden-p (expand-file-name "Areas/Other.org" dir))))))
+
+(ert-deftest ps/file-tree--set-hidden-combined-include-and-exclude ()
+  "Exclude wins even within an included subtree."
+  (let ((ps/file-tree-file-sets
+         '(("Work" . (:include ("/Work/") :exclude ("Confidential")))))
+        (ps/file-tree-current-set "Work"))
+    (should-not (ps/file-tree--set-hidden-p "/base/Areas/Work/Plan.org"))
+    (should (ps/file-tree--set-hidden-p "/base/Areas/Work/Confidential.org"))))
+
+(ert-deftest ps/file-tree--ignored-p-set-exclude-combines-with-ignored-files ()
+  "`ps/file-tree--ignored-p' hides files via either ignore-list or set exclude."
+  (let ((ps/file-tree-ignored-files '("\\`init\\.org\\'"))
+        (ps/file-tree-file-sets '(("Secret" . (:include nil :exclude ("Diary")))))
+        (ps/file-tree-current-set "Secret"))
+    (should (ps/file-tree--ignored-p "init.org" "/base/init.org"))
+    (should (ps/file-tree--ignored-p "Diary.org" "/base/Areas/Diary.org"))
+    (should-not (ps/file-tree--ignored-p "Career.org" "/base/Areas/Career.org"))))
+
+;;; -------------------------------------------------------
+;;; ps/file-tree--ensure-valid-set / set switching
+;;; -------------------------------------------------------
+
+(ert-deftest ps/file-tree--ensure-valid-set-keeps-valid-current ()
+  "A current set that exists in the alist is left unchanged."
+  (let ((ps/file-tree-file-sets '(("All" . (:include nil :exclude nil))
+                                   ("Work" . (:include nil :exclude nil))))
+        (ps/file-tree-current-set "Work"))
+    (ps/file-tree--ensure-valid-set)
+    (should (equal ps/file-tree-current-set "Work"))))
+
+(ert-deftest ps/file-tree--ensure-valid-set-falls-back-to-first ()
+  "An unknown current set falls back to the first entry in the alist."
+  (let ((ps/file-tree-file-sets '(("All" . (:include nil :exclude nil))
+                                   ("Work" . (:include nil :exclude nil))))
+        (ps/file-tree-current-set "DoesNotExist"))
+    (ps/file-tree--ensure-valid-set)
+    (should (equal ps/file-tree-current-set "All"))))
+
+(ert-deftest ps/file-tree-cycle-file-set-wraps-around ()
+  "Cycling moves to the next set and wraps back to the first."
+  (let ((ps/file-tree-file-sets '(("All" . (:include nil :exclude nil))
+                                   ("Work" . (:include nil :exclude nil))
+                                   ("Personal" . (:include nil :exclude nil))))
+        (ps/file-tree-current-set "All"))
+    (ps/file-tree-cycle-file-set)
+    (should (equal ps/file-tree-current-set "Work"))
+    (ps/file-tree-cycle-file-set)
+    (should (equal ps/file-tree-current-set "Personal"))
+    (ps/file-tree-cycle-file-set)
+    (should (equal ps/file-tree-current-set "All"))))
+
+;;; -------------------------------------------------------
+;;; ps/file-tree-filter-files / agenda filter toggle
+;;; -------------------------------------------------------
+
+(ert-deftest ps/file-tree-filter-files-noop-when-disabled ()
+  "When the toggle is off, FILES is returned unchanged regardless of set."
+  (let ((ps/file-tree-file-sets '(("All" . (:include nil :exclude nil))
+                                   ("Work" . (:include ("/Areas/Work\\.org\\'")
+                                              :exclude nil))))
+        (ps/file-tree-current-set "Work")
+        (ps/file-tree-set-applies-to-agenda nil)
+        (files '("/base/Areas/Work.org" "/base/Areas/Career.org")))
+    (should (equal (ps/file-tree-filter-files files) files))))
+
+(ert-deftest ps/file-tree-filter-files-removes-hidden-when-enabled ()
+  "When the toggle is on, files hidden by the current set are removed."
+  (let ((ps/file-tree-file-sets '(("All" . (:include nil :exclude nil))
+                                   ("Work" . (:include ("/Areas/Work\\.org\\'")
+                                              :exclude nil))))
+        (ps/file-tree-current-set "Work")
+        (ps/file-tree-set-applies-to-agenda t)
+        (files '("/base/Areas/Work.org" "/base/Areas/Career.org")))
+    (should (equal (ps/file-tree-filter-files files) '("/base/Areas/Work.org")))))
+
+(ert-deftest ps/file-tree-toggle-agenda-filter-flips-variable ()
+  "Toggling twice returns to the original value."
+  (let ((ps/file-tree-set-applies-to-agenda nil))
+    (ps/file-tree-toggle-agenda-filter)
+    (should (eq ps/file-tree-set-applies-to-agenda t))
+    (ps/file-tree-toggle-agenda-filter)
+    (should-not ps/file-tree-set-applies-to-agenda)))
+
+(ert-deftest ps/file-tree--modeline-shows-agenda-marker-when-enabled ()
+  "The mode-line indicator gains a marker when the toggle is on."
+  (let ((ps/file-tree-file-sets '(("All" . (:include nil :exclude nil))))
+        (ps/file-tree-current-set "All"))
+    (let ((ps/file-tree-set-applies-to-agenda nil))
+      (should-not (string-match-p "📅" (ps/file-tree--modeline))))
+    (let ((ps/file-tree-set-applies-to-agenda t))
+      (should (string-match-p "📅" (ps/file-tree--modeline))))))
+
+;;; -------------------------------------------------------
+;;; ps/file-tree--list-subdirs
+;;; -------------------------------------------------------
 
 (ert-deftest ps/file-tree--list-subdirs-returns-only-visible-dirs ()
   "Only non-ignored subdirectories are returned, files are excluded."
@@ -132,5 +262,92 @@ others as empty files."
   (should-not (ps/file-tree--expandable-state-p 'tag-node))
   (should-not (ps/file-tree--expandable-state-p nil))
   (should-not (ps/file-tree--expandable-state-p 'unknown-state)))
+
+;;; -------------------------------------------------------
+;;; ps/file-tree--target-window
+;;; -------------------------------------------------------
+
+(ert-deftest ps/file-tree--target-window-picks-most-recently-used ()
+  "Among real editor windows, the most-recently-selected one is returned;
+the dedicated file-tree (side) window is excluded."
+  (let ((tree-buf (generate-new-buffer "tree"))
+        (buf-a (generate-new-buffer "a"))
+        (buf-b (generate-new-buffer "b")))
+    (unwind-protect
+        (save-window-excursion
+          (delete-other-windows)
+          (set-window-buffer (selected-window) tree-buf)
+          (let* ((tree-win (selected-window))
+                 (win-a (split-window tree-win))
+                 (win-b (split-window win-a)))
+            ;; Mark the tree window dedicated, like the real treemacs side
+            ;; window; it must never be chosen.
+            (set-window-dedicated-p tree-win t)
+            (set-window-buffer win-a buf-a)
+            (set-window-buffer win-b buf-b)
+            (select-window win-a)
+            (select-window win-b)
+            (should (eq (ps/file-tree--target-window) win-b))
+            (select-window win-a)
+            (should (eq (ps/file-tree--target-window) win-a))))
+      (mapc #'kill-buffer (list tree-buf buf-a buf-b)))))
+
+(ert-deftest ps/file-tree--target-window-nil-when-only-tree-window ()
+  "Returns nil when the only window is the dedicated file tree."
+  (let ((tree-buf (generate-new-buffer "tree")))
+    (unwind-protect
+        (save-window-excursion
+          (delete-other-windows)
+          (set-window-buffer (selected-window) tree-buf)
+          (set-window-dedicated-p (selected-window) t)
+          (should-not (ps/file-tree--target-window)))
+      (kill-buffer tree-buf))))
+
+;;; ps/file-tree-visit-file
+;;; -------------------------------------------------------
+
+(ert-deftest ps/file-tree-visit-file-reuses-editor-window-not-tree ()
+  "Visiting a not-yet-open file from the dedicated tree window reuses the
+editor window instead of splitting a new one (the get-buffer-window-of-nil bug)."
+  (let* ((tmp (make-temp-file "ps-visit" nil ".txt"))
+         (tree-buf (generate-new-buffer "tree"))
+         (ed-buf (generate-new-buffer "editor")))
+    (unwind-protect
+        (save-window-excursion
+          (delete-other-windows)
+          (set-window-buffer (selected-window) tree-buf)
+          (let* ((tree-win (selected-window))
+                 (ed-win (split-window tree-win)))
+            (set-window-buffer ed-win ed-buf)
+            ;; Emulate the treemacs side window and a click happening in it.
+            (set-window-dedicated-p tree-win t)
+            (select-window tree-win)
+            (let ((before (length (window-list))))
+              (ps/file-tree-visit-file tmp)
+              (should (= (length (window-list)) before))
+              (should (eq (selected-window) ed-win))
+              (should (eq (window-buffer ed-win) (get-file-buffer tmp))))))
+      (when (get-file-buffer tmp) (kill-buffer (get-file-buffer tmp)))
+      (kill-buffer tree-buf)
+      (kill-buffer ed-buf)
+      (delete-file tmp))))
+
+(ert-deftest ps/file-tree-visit-file-reuses-window-already-showing-file ()
+  "If FILE is already shown in a window, that window is reused."
+  (let* ((tmp (make-temp-file "ps-visit" nil ".txt"))
+         (buf-a (generate-new-buffer "a")))
+    (unwind-protect
+        (save-window-excursion
+          (delete-other-windows)
+          (set-window-buffer (selected-window) buf-a)
+          (let* ((w1 (selected-window))
+                 (w2 (split-window w1)))
+            (set-window-buffer w2 (find-file-noselect tmp))
+            (select-window w1)
+            (ps/file-tree-visit-file tmp)
+            (should (eq (selected-window) w2))))
+      (when (get-file-buffer tmp) (kill-buffer (get-file-buffer tmp)))
+      (kill-buffer buf-a)
+      (delete-file tmp))))
 
 ;;; test-ps-file-tree.el ends here

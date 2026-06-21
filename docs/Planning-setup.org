@@ -1,0 +1,166 @@
+#+TITLE: Planning setup
+#+OPTIONS: toc:t
+#+STARTUP: inlineimages
+
+[[file:Index.org][↑ Back to the documentation index]]
+
+This page explains how your Org files are organized, the task states and
+priorities this config uses, and the everyday Org-mode keys for editing tasks.
+
+The workflow is *inspired by* [[https://en.wikipedia.org/wiki/Getting_Things_Done][Getting Things Done]] — capture things out of your
+head, keep them in plain-text files, and review a single agenda that surfaces
+what's relevant now. It isn't a strict implementation of the methodology; treat
+it as a calm, lightweight starting point you can shape to your own taste.
+
+* Your Org files
+Everything lives under the one base directory you set in =local.el=
+(=my-org-base-directory= — see [[file:Installation.org][Installation]]). The recommended layout:
+
+#+begin_example
+<my-org-base-directory>/
+├── Areas/      one .org file per area of life/work — scanned for the agenda
+│                 (e.g. Career.org, Health.org, Projects.org, Inbox.org, …)
+├── Vision/     long-term vision and yearly goals (not scanned)
+├── Current/    your current focus / weekly review (not scanned)
+└── workspace.org   per-folder settings (icons, file sets) — optional
+#+end_example
+
+- =Areas/= is the important one: every =.org= file in it (recursively) feeds
+  the agenda. Make one file per area of responsibility — a project, a part of
+  your job, a hobby. =Inbox.org= is a good place to dump new items.
+- =Vision/= and =Current/= are yours to use freely; the agenda doesn't scan
+  them automatically.
+- =workspace.org= holds settings tied to /this/ data folder (your category
+  icons, your file-tree sets) — see [[file:Customization.org][Customization & appearance]].
+
+A working example of this whole layout ships in =samples/realistic/=.
+
+* Anatomy of a task
+A task is just an Org *headline* with a few optional parts. Here is an
+annotated one:
+
+#+begin_example
+** TODO [#A] Write the proposal :work:writing:
+   DEADLINE: <2026-07-01 Wed>
+   :PROPERTIES:
+   :Effort:   2h
+   :END:
+   Free-form notes go here — anything below the headline is the task's body.
+#+end_example
+
+Reading it piece by piece:
+
+- =**= — the leading *stars* set the outline level (two stars = a second-level
+  heading). More stars means deeper in the hierarchy.
+- =TODO= — the *state* keyword (see below). Its presence is what marks the
+  headline as a task rather than a plain heading.
+- =[#A]= — an optional *priority* cookie (A, B, or C).
+- =Write the proposal= — the task *text*.
+- =:work:writing:= — optional *tags*, handy for filtering.
+- =DEADLINE:= / =SCHEDULED:= — an optional *planning line* carrying dates (see
+  /Scheduling and deadlines/ below).
+- =:PROPERTIES:= … =:END:= — an optional *drawer* for metadata such as an effort
+  estimate; it stays folded out of the way.
+- Everything below the headline is *body text* — notes, links, checklists.
+
+Only the stars and some text are required; you add the rest as you need it.
+
+* Task hierarchy
+Headlines nest to form an outline, and the nesting is meaningful: a deeper
+headline is a *subtask* (or sub-part) of the one above it.
+
+#+begin_example
+* Launch the website              <- a project (level 1)
+** TODO Design the landing page   <- a task within it (level 2)
+*** TODO Pick the colour scheme   <- a subtask (level 3)
+*** TODO Write the copy
+** TODO Set up hosting
+#+end_example
+
+Group your work however you think about it: area → project → task → subtask.
+The agenda reads every actionable headline regardless of depth, so a deeply
+nested =TODO= still shows up. Fold a project with =TAB= to hide its subtasks, or
+=S-TAB= to collapse the whole file to an overview (see /Folding/ below). Change a
+headline's level with =M-→= / =M-←= (demote / promote) and move a whole branch
+with =M-↑= / =M-↓= — see the key table below.
+
+* Task states
+A task is a headline that starts with a keyword. This config uses a short
+sequence (kept to four characters so the agenda stays compact):
+
+| Keyword | Meaning                                   |
+|---------+-------------------------------------------|
+| =TODO=  | something to do, not started              |
+| =NEXT=  | a concrete next action                    |
+| =INPR=  | in progress right now                     |
+| =WAIT=  | blocked / waiting on someone or something |
+| =MAYB=  | maybe / someday — not committed           |
+| =DONE=  | finished (drops out of the active agenda) |
+
+In practice many people lean on =INPR= plus *priorities* (below) rather than
+=NEXT= to decide what to work on — the agenda has dedicated /In progress/ and
+/High-priority/ sections for exactly this.
+
+* Priorities
+Tasks can carry a priority cookie =[#A]=, =[#B]=, or =[#C]= (A is highest). The
+agenda gathers all =[#A]= tasks into a *High-priority* section, so marking the
+few things that truly matter today is enough to make them stand out.
+
+* Scheduling and deadlines
+Two kinds of dates drive the agenda, and they mean different things:
+
+- *SCHEDULED* — when you intend to *work on* something. Add it with =C-c C-s=,
+  which opens a date picker. Enter a plain date, or add a time of day
+  (=2026-06-22 13:30=) or a time range (=2026-06-22 13:30-15:00=) — a timed
+  SCHEDULED entry appears on the agenda's timeline.
+- *DEADLINE* — when something is *due*. Add it with =C-c C-d=. Deadlines surface
+  in the agenda's /Due today/, /Due soon/, and /Overdue/ sections, and warn you
+  in advance.
+
+In the date picker you can also type shorthands like =+3d= (in three days) or
+=fri= (next Friday), or use =S-→= / =S-←= to step one day at a time. You never
+type the =<...>= brackets yourself — Org inserts them.
+
+A task can have both a deadline and a scheduled time:
+
+#+begin_example
+** TODO Write the proposal
+   SCHEDULED: <2026-06-22 Mon 13:30-15:00> DEADLINE: <2026-07-01 Wed>
+#+end_example
+
+To remove a date, run the same command again and clear the prompt, or just
+delete the planning line.
+
+* Editing tasks: the essential keys
+These are standard Org-mode bindings, used while editing an Org file (not the
+agenda). They're worth committing to muscle memory.
+
+| Key           | Action                                                  |
+|---------------+---------------------------------------------------------|
+| =C-c C-t=     | change the TODO state (pick from the list)              |
+| =S-→= / =S-←= | cycle the TODO state right / left without a menu        |
+| =C-c ,=       | set the priority (=A=/=B=/=C=, or =SPC= to clear)       |
+| =C-c C-s=     | add/edit a *SCHEDULED* date (calendar picker)           |
+| =C-c C-d=     | add/edit a *DEADLINE* date                              |
+| =M-RET=       | new headline/task at the same level, below the current  |
+| =M-→= / =M-←= | demote / promote the heading (change its level)         |
+| =M-↑= / =M-↓= | move the whole subtree up / down among its siblings     |
+| =C-c C-c=     | set tags on a heading (also: act on the thing at point) |
+
+* Folding: see more or less
+Org files are outlines you can collapse and expand:
+
+- =TAB= — fold/unfold the subtree under the current heading.
+- =S-TAB= — cycle the *whole buffer* between overview, contents, and full
+  detail. Press it a few times to get a feel for it.
+- =C-u C-u TAB= — reset the buffer to its startup folding.
+
+This config also fades and folds *DONE* tasks so finished work recedes visually
+— see [[file:Files-and-navigation.org][Files & navigation]] and [[file:Agenda.org][The Agenda]].
+
+* Under the hood / Customize
+- The task keywords are defined once in =config.org= → /Org Mode → Agenda →
+  TODO keywords/ (=org-todo-keywords=). Change them there; nothing in the code
+  hardcodes the names. Keep each keyword ≤ 4 characters so the agenda pills stay
+  compact.
+- The =Areas/= scan is =ps/agenda-files-refresh= in =config.org= → /Agenda files/.

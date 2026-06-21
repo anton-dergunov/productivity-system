@@ -5,70 +5,63 @@
 (add-to-list 'load-path "lisp")
 (require 'ps-file-tree-icons)
 
-(defmacro ps/file-tree-icons-test--with-icon-dir (files &rest body)
-  "Create a temp dir containing FILES (a list of names), bind `dir', run BODY.
-Each file is created empty.  Cleans up afterward."
-  (declare (indent 1))
-  `(let ((dir (make-temp-file "ps-file-tree-icons-" t)))
-     (unwind-protect
-         (progn
-           (dolist (name ,files)
-             (with-temp-file (expand-file-name name dir) (insert "")))
-           ,@body)
-       (delete-directory dir t))))
+;; Point at the repo's shipped icon assets.
+(let ((root (locate-dominating-file default-directory "icons")))
+  (setq ps/material-icons-codepoints-file
+        (expand-file-name "icons/material-symbols.codepoints" root))
+  (setq ps/file-tree-icon-fallback-dir (expand-file-name "icons" root)))
 
 ;;; -------------------------------------------------------
-;;; build-alist
+;;; glyph icon strings
 ;;; -------------------------------------------------------
 
-(ert-deftest ps/file-tree-icons--build-counts-svgs-only ()
-  "Only .svg files produce entries; other files are ignored."
-  (ps/file-tree-icons-test--with-icon-dir '("a.svg" "b.svg" "c.txt" "notes.org")
-    (should (= (length (ps/file-tree-icons--build-alist dir)) 2))))
+(ert-deftest ps/file-tree-icons--glyph-is-image-with-spacer ()
+  "A glyph icon is an image-display string followed by the standard spacer."
+  ;; Stub create-image to avoid SVG dependency in batch Emacs.
+  (cl-letf (((symbol-function 'create-image)
+             (lambda (data &optional type data-p &rest props)
+               (apply #'list 'image :type type (if data-p :data :file) data props))))
+    (let* ((ps/material-icons--table nil)
+           (icon (ps/file-tree-icons--glyph "folder")))
+      (should (eq (car (get-text-property 0 'display icon)) 'image))
+      (should (> (length icon) 1))
+      (should (equal (get-text-property 1 'display icon)
+                      (list 'space :width ps/file-tree-name-spacing))))))
 
-(ert-deftest ps/file-tree-icons--build-categories-are-basenames ()
-  "Categories are the SVG file base names (no extension, no directory)."
-  (ps/file-tree-icons-test--with-icon-dir '("Work.svg" "Home.svg")
-    (let ((cats (mapcar #'car (ps/file-tree-icons--build-alist dir))))
-      (should (member "Work" cats))
-      (should (member "Home" cats)))))
+(ert-deftest ps/file-tree-icons--glyph-uses-file-tree-ascent ()
+  "The glyph image takes its `:ascent' from `ps/file-tree-icon-ascent'."
+  ;; Stub create-image to avoid SVG dependency in batch Emacs.
+  (cl-letf (((symbol-function 'create-image)
+             (lambda (data &optional type data-p &rest props)
+               (apply #'list 'image :type type (if data-p :data :file) data props))))
+    (let* ((ps/material-icons--table nil)
+           (ps/file-tree-icon-ascent 80)
+           (image (get-text-property 0 'display (ps/file-tree-icons--glyph "folder"))))
+      (should (equal (image-property image :ascent) 80)))))
 
-(ert-deftest ps/file-tree-icons--build-entry-is-abs-path ()
-  "Each entry maps CATEGORY to an absolute path of the SVG file."
-  (ps/file-tree-icons-test--with-icon-dir '("Work.svg")
-    (let ((entry (car (ps/file-tree-icons--build-alist dir))))
-      (should (equal (car entry) "Work"))
-      (should (string-suffix-p "Work.svg" (cdr entry)))
-      (should (file-name-absolute-p (cdr entry))))))
-
-(ert-deftest ps/file-tree-icons--build-empty-dir ()
-  "A directory with no SVGs yields nil."
-  (ps/file-tree-icons-test--with-icon-dir '("readme.txt")
-    (should (null (ps/file-tree-icons--build-alist dir)))))
-
-(ert-deftest ps/file-tree-icons--build-missing-dir ()
-  "A non-existent directory yields nil."
-  (should (null (ps/file-tree-icons--build-alist "/no/such/dir/at/all"))))
+(ert-deftest ps/file-tree-icons--glyph-unknown-is-nil ()
+  "An unknown icon name yields nil (no icon registered)."
+  (let ((ps/material-icons--table nil))
+    (should (null (ps/file-tree-icons--glyph "no_such_icon_xyz")))))
 
 ;;; -------------------------------------------------------
-;;; merge
+;;; fallback SVGs
 ;;; -------------------------------------------------------
 
-(ert-deftest ps/file-tree-icons--merge-skips-missing-dir ()
-  "merge still finds icons in later dirs when an earlier one is missing."
-  (ps/file-tree-icons-test--with-icon-dir '("Work.svg")
-    (let ((merged (ps/file-tree-icons--merge (list "/no/such/dir/at/all" dir))))
-      (should (= (length merged) 1))
-      (should (equal (car (car merged)) "Work")))))
+(ert-deftest ps/file-tree-icons--fallback-svg-found ()
+  "A shipped fallback SVG (named after its glyph) renders to an image string."
+  ;; Stub create-image to avoid SVG dependency in batch Emacs.
+  (cl-letf (((symbol-function 'create-image)
+             (lambda (data &optional type data-p &rest props)
+               (apply #'list 'image :type type (if data-p :data :file) data props))))
+    (let ((icon (ps/file-tree-icons--fallback-svg ps/file-tree-icons--file)))
+      (should icon)
+      (should (eq (car (get-text-property 0 'display icon)) 'image))
+      (should (equal (image-property (get-text-property 0 'display icon) :file)
+                      (expand-file-name "draft.svg" ps/file-tree-icon-fallback-dir))))))
 
-(ert-deftest ps/file-tree-icons--merge-later-dir-overrides-earlier ()
-  "When the same category exists in multiple dirs, the last dir wins."
-  (ps/file-tree-icons-test--with-icon-dir '("Work.svg")
-    (let ((stock-dir dir))
-      (ps/file-tree-icons-test--with-icon-dir '("Work.svg")
-        (let* ((custom-dir dir)
-               (merged (ps/file-tree-icons--merge (list stock-dir custom-dir))))
-          (should (= (length merged) 1))
-          (should (string-prefix-p custom-dir (cdr (assoc "Work" merged)))))))))
+(ert-deftest ps/file-tree-icons--fallback-svg-missing-is-nil ()
+  "A missing fallback SVG yields nil."
+  (should (null (ps/file-tree-icons--fallback-svg "NoSuchIcon"))))
 
 ;;; test-ps-file-tree-icons.el ends here

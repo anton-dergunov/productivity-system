@@ -14,11 +14,20 @@ file needs. Do not move it.
   ;; -*- lexical-binding: t; -*-
   ;; Code above enables lexical scoping so lambdas can capture variables (needed for async code)
 
-  ;; Disable the org-element cache before anything else.  Without this,
+  ;; Disable the org-element cache for runtime Org use.  Without this,
   ;; Org can hit "Invalid search bound (wrong side of point)" while
-  ;; parsing this very file at startup — before the Org Mode section
-  ;; gets to set it later.
+  ;; parsing this very file — before the Org Mode section sets it later.
+  ;; NOTE: the authoritative *tangle-time* guard lives in init.el, set
+  ;; before `org-babel-load-file' tangles this file; this line cannot
+  ;; protect that tangle since it only takes effect once config.el is
+  ;; already built and loaded. Kept here as belt-and-suspenders.
   (setq org-element-use-cache nil)
+
+  ;; Don't pop up the *Warnings* buffer when third-party packages byte/native-
+  ;; compile on first install (e.g. guess-language emits a few harmless warnings
+  ;; in its own source). Warnings are still logged to *Async-native-compile-log*,
+  ;; and our own ps-* modules are kept warning-clean regardless.
+  (setq native-comp-async-report-warnings-errors 'silent)
 
   (require 'package)
 
@@ -59,7 +68,11 @@ All self-contained logic lives in =lisp/ps-*.el=.
   (require 'ps-done)
   (require 'ps-git-sync)
   (require 'ps-agenda-emoji)
+  (require 'ps-material-icons)
   (require 'ps-agenda-icons)
+  (require 'ps-agenda-layout)
+  (require 'ps-schedule-view)
+  (require 'ps-agenda-fold)
   (require 'ps-schedule-icons)
   (require 'ps-blank-lines)
   (require 'ps-availability)
@@ -70,6 +83,39 @@ All self-contained logic lives in =lisp/ps-*.el=.
   (require 'ps-gptel)
   (require 'ps-org-db)
   (require 'ps-claude)
+  (require 'ps-typo)
+  (require 'ps-org-src-comment)
+  (require 'ps-mode-line)
+
+  ;; Install the planning-focused mode line and frame title (org-mode-hook,
+  ;; org-agenda-mode-hook, frame-title-format) before any Org buffer loads.
+  (ps/mode-line-setup)
+#+end_src
+
+** Auto-tangle this config on save
+Saving =config.org= in a live session regenerates =config.el= immediately.
+Because this tangle runs in a fully-initialized Emacs (org-element cache already
+off, Org fully loaded) it is always clean — unlike the tangle =init.el= performs
+at startup. It also leaves =config.el= newer than =config.org=, so the next
+restart skips startup tangling entirely and just loads a known-good file.
+#+begin_src emacs-lisp
+  (defun ps/tangle-config-on-save ()
+    "Tangle config.org -> config.el after saving config.org.
+  Runs in the live session (org-element cache already off, Org fully
+  loaded), so the tangle is clean — unlike the tangle init.el performs at
+  startup. Regenerating config.el here also makes it newer than config.org,
+  so the next restart skips startup tangling and just loads it."
+    (let ((config (expand-file-name "config.org" user-emacs-directory)))
+      (when (and buffer-file-name
+                 (string= (file-truename buffer-file-name)
+                          (file-truename config)))
+        (let ((org-confirm-babel-evaluate nil))
+          (org-babel-tangle-file
+           config
+           (expand-file-name "config.el" user-emacs-directory)
+           "emacs-lisp")))))
+
+  (add-hook 'after-save-hook #'ps/tangle-config-on-save)
 #+end_src
 
 * Settings
@@ -132,25 +178,78 @@ this is non-nil, and fall back to theme-relative faces otherwise.")
         ps/conflicts-include-past   nil)
 #+end_src
 
+** Mode line (ps-mode-line.el)
+Separator placed between mode-line components (filename · position · heading).
+#+begin_src emacs-lisp
+  (setq ps/mode-line-separator " · ")
+#+end_src
+
+** Material icons (ps-material-icons.el)
+Category icons (in the agenda and the file tree) are drawn from the "Material
+Symbols Outlined" font — no per-icon SVG files. See the README for installing
+the font. Icon *size* auto-derives from your font height (so alignment stays
+stable across fonts/OSes); tune =ps/material-icons-height-scale= once if needed.
+
+The =category-map= (=<Category>.org= → icon name) and =folder-map= (whole-folder
+icons) are left *empty* here: =config.org= renders every file with the generic
+=File= icon unless overridden. Real mappings live in your Org folder's
+=workspace.org= (see "Workspace config" below), so your personal categories
+never enter this public repo. Names come from https://fonts.google.com/icons.
+#+begin_src emacs-lisp
+  (setq ps/material-icons-font-family "Material Symbols Outlined")
+  (setq ps/material-icons-color       "#5f6368")
+  (setq ps/material-icons-height      'auto)
+  (setq ps/material-icons-height-scale 1.0)
+  (setq ps/material-icons-category-map nil)
+  (setq ps/material-icons-folder-map   nil)
+#+end_src
+
 ** File Tree (ps-file-tree.el / ps-file-tree-icons.el)
 Files/dirs whose name matches any regexp here are hidden from the file tree
-(=init.org=, dotfiles, =elpa/=, byte-compiled files by default). Icons are
-loaded from =icons/stock/= and =icons/custom/= and matched to
-=<Category>.org= files, the same as the agenda category icons. Set
-=ps/file-tree-use-custom-icons= to =nil= to use treemacs's generic icons
-instead.
+(=init.org=, dotfiles, =elpa/=, byte-compiled files by default). Category icons
+come from the Material Symbols font (see above); =ps/file-tree-icon-ascent= sets
+the vertical alignment of every file-tree icon (root projects and files alike).
+If the font is unavailable, the tree falls back to the =folder=/=folder_open=
+/=draft= SVGs in =ps/file-tree-icon-fallback-dir=. Set =ps/file-tree-use-custom-icons=
+to =nil= to use treemacs's generic icons instead.
 #+begin_src emacs-lisp
   (setq ps/file-tree-ignored-files
         '("\\`init\\.org\\'" "\\`\\." "\\`elpa\\'" "\\.elc\\'"))
 
-  (setq ps/file-tree-icon-dirs
-        (list (expand-file-name "icons/stock" user-emacs-directory)
-              (expand-file-name "icons/custom" user-emacs-directory)))
-
   (setq ps/file-tree-use-custom-icons t)
   (setq ps/file-tree-name-spacing 0.5)
-  (setq ps/file-tree-icon-height 20)
-  (setq ps/file-tree-icon-ascent 75)
+  (setq ps/file-tree-icon-ascent 80)
+  (setq ps/file-tree-icon-fallback-dir
+        (expand-file-name "icons" user-emacs-directory))
+#+end_src
+
+*** File sets
+Named filters for which files the tree shows — by default this is purely
+a display filter, and the agenda and everything else still see every
+file. Each set has =:include= and/or =:exclude= regexps, matched as
+substrings of each file's absolute path. "All" (the default) shows
+everything, and is also the fallback used if =ps/file-tree-current-set=
+ever names a set that no longer exists. The active set is shown and
+switched from the file tree's mode line, and persists across restarts.
+#+begin_src emacs-lisp
+  (setq ps/file-tree-file-sets
+        '(("All" . (:include nil :exclude nil))
+          ;; ;; Examples:
+          ;; ("Work" . (:include ("/Areas/Work\\.org\\'"
+          ;;                      "/Current/")
+          ;;            :exclude nil))
+          ;; ("No Sensitive" . (:include nil
+          ;;                     :exclude ("/Areas/Financial\\.org\\'"
+          ;;                               "/Areas/Interviews\\.org\\'")))
+          ))
+#+end_src
+
+Set =ps/file-tree-set-applies-to-agenda= to =t= to additionally scope
+=org-agenda-files= and the standalone Conflicts/Availability buffers to
+the active set's visible files (toggle at any time with
+=ps/file-tree-toggle-agenda-filter=; this also persists across restarts).
+#+begin_src emacs-lisp
+  (setq ps/file-tree-set-applies-to-agenda nil)
 #+end_src
 
 ** Done tasks (ps-done.el)
@@ -163,6 +262,7 @@ active theme's =shadow= face (the =auto= value handled in =ps-done.el=).
 ** Git sync (ps-git-sync.el)
 #+begin_src emacs-lisp
   (setq ps/git-sync-interval 60)
+  (setq ps/git-sync-timeout 120)
 #+end_src
 
 ** Schedule/deadline icons (ps-schedule-icons.el)
@@ -186,10 +286,166 @@ active theme's =shadow= face (the =auto= value handled in =ps-done.el=).
 #+end_src
 
 ** Agenda emoji matcher (ps-agenda-emoji.el)
-Path to the Python script invoked from the agenda finalize hook.
+The agenda appends a semantic emoji to each task. Matches come from
+=scripts/org_emoji_matcher.py= and are kept in a persistent on-disk cache, so a
+warm agenda render reuses cached emojis and never spawns Python.
+
+Set =ps/agenda-emoji-enabled= to nil to turn the agenda emojis off entirely.
+=cache-tag= identifies the model/threshold the cache was built for: bump it
+(and, if you like, set =EMOJI_MODEL= / =EMOJI_THRESHOLD= for the script) to
+invalidate the cache after changing the matcher. =right-margin= is how many
+columns from the right window edge the emoji column starts.
 #+begin_src emacs-lisp
-  (setq ps/agenda-emoji-matcher-path
-        (expand-file-name "scripts/org_emoji_matcher.py" user-emacs-directory))
+  (setq ps/agenda-emoji-enabled      t   ; set to nil to disable agenda emojis
+        ps/agenda-emoji-matcher-path
+        (expand-file-name "scripts/org_emoji_matcher.py" user-emacs-directory)
+        ps/agenda-emoji-cache-file
+        (expand-file-name "emoji_matcher/task_cache.json"
+                          (expand-file-name ".cache" "~"))
+        ps/agenda-emoji-cache-tag    "bge-small-en-v1.5@0.50"
+        ps/agenda-emoji-right-margin 3
+        ps/agenda-emoji-face         '(:height 0.8))
+#+end_src
+
+** Agenda layout (ps-agenda-layout.el)
+The agenda task lines are re-laid into aligned columns:
+=[category] [STATE] [PRIORITY] [emoji]  Title… [tags]   [when]=. State, priority
+and the relative date ("11d ago") are drawn as rounded pill badges; titles line
+up across every section and are truncated (full text shown on hover) when they
+would overflow.
+
+- =category-display=: =icon= (default), =name=, =both=, or =none=.
+- =schedule-style=: =grid= keeps Org's native time ruler; =compact= hides the
+  empty grid rows and lays timed events out like the other sections. Switch and
+  press =g= in the agenda to compare.
+- =state-labels=: remap a keyword to a shorter label, e.g. ="WAIT" → "W"= (the
+  actual TODO keyword is unchanged). Rarely needed now that all keywords are ≤4
+  chars. Empty = show keywords verbatim.
+- =state-cols= is auto-computed from the longest keyword + 2 padding spaces when
+  left at =nil=; set to an integer to override. =priority-cols= is =4= (covers
+  =" #A "=). State and priority badges use =org-modern= faces, so their colours
+  follow the active theme automatically — no per-theme colour overrides needed.
+#+begin_src emacs-lisp
+  (setq ps/agenda-layout-enabled        t
+        ps/agenda-layout-category-display 'icon   ; icon | name | both | none
+        ps/agenda-layout-schedule-style   'grid   ; grid | compact
+        ps/agenda-layout-state-labels     nil     ; e.g. '(("WAIT" . "W"))
+        ps/agenda-layout-truncate         t
+        ps/agenda-layout-priority-cols    3
+        ps/agenda-layout-emoji-cols       2
+        ps/agenda-layout-category-cols    2
+        ps/agenda-layout-right-margin-cols 1)
+#+end_src
+
+** Schedule view (ps-schedule-view.el)
+Replaces the native time-grid rendering for the Schedule section with two
+styles, switchable from the =Productivity → Schedule View= menu:
+
+- =Timeline= — shows the full time axis: a tick row for each grid interval
+  appears between timed events.  Useful when you want to see the complete time
+  structure of the day.
+- =Events= — shows only the timed events; grid-tick rows are hidden for a more
+  compact view.
+
+Both styles use a left-hand time column (=HH:MM-HH:MM ┆=) with task body
+columns identical to the other sections (just shifted right by the time prefix).
+Overlapping events are flagged with =⚠ overlap= at the right edge.
+
+=auto-refresh=: when enabled (default), the agenda is re-generated at the
+start of each calendar minute so the now-indicator and DONE-task visibility stay
+current.  Cursor and scroll position are preserved across refreshes.
+#+begin_src emacs-lisp
+  (setq ps/schedule-view-style       'timeline   ; timeline | events
+        ps/schedule-view-auto-refresh t)
+  (ps/schedule-view-setup)
+#+end_src
+
+** Agenda fold (ps-agenda-fold.el)
+Agenda sections (Overdue / High-priority / In progress / …) can be collapsed.
+Press =TAB= or click a section header to fold/unfold it; =M-x
+ps/agenda-fold-collapse-all= / =ps/agenda-fold-expand-all= toggle everything.
+List the section headers that should start collapsed when the agenda opens.
+#+begin_src emacs-lisp
+  (setq ps/agenda-fold-default-collapsed nil)  ; e.g. '("In progress:")
+#+end_src
+
+** Typo / spell checking (ps-typo.el)
+A quiet, multilingual typo checker for Org buffers. A word is underlined only
+when *no* configured language recognises it, so terms valid in any of your
+languages (e.g. Spanish =calor=, Cyrillic words) are never flagged. Code, links
+and markup are skipped automatically. Correct a word with =M-$=.
+
+=ps/typo-languages= is the union of accepted languages — extend it for every
+language you write in (each needs an =enchant= dictionary; see README.md).
+=ps/typo-near-miss-gate= is an extra-precision mode (only flag words that look
+like a near miss of a real word); it is off by default so you can experiment.
+=ps/typo-order-suggestions-by-language= lists fixes for the locally-detected
+language first; set it to nil to disable. =ps/typo-underline-color= is the wavy
+underline colour (=auto= derives a muted colour from the theme's =shadow= face).
+=ps/typo-inhibit-predicate= excludes the read-only documentation reading view
+(=ps/help--doc-buffer-p=, defined later in this file) — those pages cannot be
+edited, so spell-checking them is just noise.
+#+begin_src emacs-lisp
+  (setq ps/typo-languages       '("en_US" "ru_RU" "es_ES")
+        ps/typo-min-length      3
+        ps/typo-near-miss-gate  nil   ; t = only flag near-misses of real words
+        ps/typo-near-miss-max-distance 2
+        ps/typo-order-suggestions-by-language t
+        ;; Solarized keeps a soft grey; other themes derive one from `shadow'.
+        ps/typo-underline-color (if ps/color-theme-solarized-p "gray60" 'auto)
+        ;; Never spell-check the read-only docs reading view.
+        ps/typo-inhibit-predicate #'ps/help--doc-buffer-p)
+#+end_src
+
+** Workspace config (per-Org-folder overrides)
+A small =workspace.org= in your Org base directory (beside =init.org=) holds
+settings specific to *this data folder* — personal category→icon mappings and
+file sets — overriding the (intentionally empty) defaults above. It is loaded
+here, after those defaults but before icons are applied, so its overrides take
+effect. Keeping personal data there (not in =config.org=) means pulling upstream
+changes never conflicts. It is loaded artifact-free: its elisp is tangled to a
+throwaway file in the system temp dir, never inside your Org folder.
+#+begin_src emacs-lisp
+  (defun ps/workspace-config-file ()
+    "Return the path to this Org folder's workspace.org."
+    (expand-file-name "workspace.org" my-org-base-directory))
+
+  (defun ps/load-workspace-config ()
+    "Load emacs-lisp from workspace.org, if it exists.
+Tangles its blocks to a temp .el in the system temp dir (never the Org dir),
+loads it, then deletes it. Silently does nothing when the file is absent."
+    (let ((file (ps/workspace-config-file)))
+      (when (file-exists-p file)
+        (require 'ob-tangle)
+        (let ((el (make-temp-file "ps-workspace-" nil ".el")))
+          (unwind-protect
+              (let ((org-confirm-babel-evaluate nil))
+                (org-babel-tangle-file file el "emacs-lisp")
+                (load el nil t))
+            (when (file-exists-p el) (delete-file el)))))))
+
+  (defun ps/icons-reapply ()
+    "Re-apply agenda and file-tree icons from the current maps."
+    (ps/agenda-icons-apply)
+    (when (and ps/file-tree-use-custom-icons (featurep 'treemacs))
+      (ps/file-tree-icons-apply my-org-base-directory)
+      (when (fboundp 'ps/file-tree--refresh) (ps/file-tree--refresh))))
+
+  (defun ps/open-workspace-config ()
+    "Open this Org folder's workspace.org (a fresh buffer if it doesn't exist)."
+    (interactive)
+    (find-file (ps/workspace-config-file)))
+
+  (defun ps/reload-workspace-config ()
+    "Reload workspace.org and re-apply icons and file sets."
+    (interactive)
+    (ps/load-workspace-config)
+    (ps/icons-reapply)
+    (when (fboundp 'ps/agenda-files-refresh) (ps/agenda-files-refresh))
+    (message "Workspace config reloaded"))
+
+  ;; Apply this folder's overrides now, before icons are built below.
+  (ps/load-workspace-config)
 #+end_src
 
 ** Claude Code (ps-claude.el)
@@ -288,11 +544,23 @@ with =M-x ps/org-db-stop-server= if needed.
   ;; Display line numbers globally
   (global-display-line-numbers-mode t)
 
-  ;; Disable line numbers for specific modes
-  (dolist (mode '(term-mode-hook
-                  shell-mode-hook
-                  eshell-mode-hook))
-    (add-hook mode (lambda () (display-line-numbers-mode 0))))
+  ;; Major modes that must NEVER show line numbers. Stock Emacs has no built-in
+  ;; exempt list for `global-display-line-numbers-mode' — its turn-on function
+  ;; only skips the minibuffer and otherwise enables numbers in every buffer.
+  ;; Disabling the minor mode from a mode hook is fragile: the global mode
+  ;; re-evaluates buffers on major-mode changes and can re-enable numbers when a
+  ;; buffer is rebuilt, which is how the File Tree (treemacs) intermittently
+  ;; ended up with line numbers (its buffer is recreated on toggle / visibility-
+  ;; set switches). Instead, refuse to turn numbers on for these modes at the
+  ;; source, so the decision holds every time the global mode evaluates a buffer.
+  (defvar ps/display-line-numbers-exempt-modes
+    '(treemacs-mode term-mode shell-mode eshell-mode org-agenda-mode)
+    "Major modes for which global line numbers must never be enabled.")
+
+  (advice-add 'display-line-numbers--turn-on :before-while
+              (lambda (&rest _)
+                (not (apply #'derived-mode-p ps/display-line-numbers-exempt-modes)))
+              '((name . ps/display-line-numbers-exempt)))
 #+end_src
 
 ** Font
@@ -391,9 +659,9 @@ This does not persist — edit `ps/color-theme' in Settings to keep a theme."
         '((sequence
            "TODO(t)"
            "NEXT(n)"
-           "IN-PROGRESS(i)"
-           "WAITING(w)"
-           "SOMEDAY(s)"
+           "INPR(i)"
+           "WAIT(w)"
+           "MAYB(m)"
            "|"
            "DONE(d)")))
 #+end_src
@@ -401,10 +669,18 @@ This does not persist — edit `ps/color-theme' in Settings to keep a theme."
 *** Agenda files
 #+begin_src emacs-lisp
   ;; https://stackoverflow.com/questions/11384516/how-to-make-all-org-files-under-a-folder-added-in-agenda-list-automatically
-  (setq org-agenda-files
-        (directory-files-recursively
-         (concat my-org-base-directory "Areas/")
-         "\\.org$"))
+  ;; Wrapped in a function so it can be re-run whenever the file-tree set
+  ;; or its agenda-filter toggle changes (see ps/file-tree-set-file-set,
+  ;; ps/file-tree-cycle-file-set, ps/file-tree-toggle-agenda-filter).
+  (defun ps/agenda-files-refresh ()
+    "Recompute `org-agenda-files', applying the active file-tree set's
+filter if `ps/file-tree-set-applies-to-agenda' is enabled."
+    (setq org-agenda-files
+          (ps/file-tree-filter-files
+           (directory-files-recursively
+            (concat my-org-base-directory "Areas/")
+            "\\.org$"))))
+  (ps/agenda-files-refresh)
 #+end_src
 
 *** Agenda misc tweaks
@@ -419,16 +695,12 @@ This does not persist — edit `ps/color-theme' in Settings to keep a theme."
 #+end_src
 
 *** Category icons (ps-agenda-icons.el)
-Icon-loading logic lives in =lisp/ps-agenda-icons.el=. The =prefix-format= below
-is a layout preference and stays here. Icons are loaded from =icons/stock/=
-(shipped with this config) and =icons/custom/= (your own additions or
-overrides, gitignored by default); if the same category exists in both, the
-one in =icons/custom/= wins. Leaving both directories empty/absent disables
-icons.
+Icon-loading logic lives in =lisp/ps-agenda-icons.el=. Each agenda category is
+drawn from the Material Symbols font per =ps/material-icons-category-map=
+(populated from =workspace.org=). The =prefix-format= below is a layout
+preference and stays here.
 #+begin_src emacs-lisp
-  (ps/agenda-icons-apply
-   (list (expand-file-name "icons/stock" user-emacs-directory)
-         (expand-file-name "icons/custom" user-emacs-directory)))
+  (ps/agenda-icons-apply)
 
   ;; Reserve space for the category name (max 14 chars in my case) next to the icon.
   (setq org-agenda-prefix-format
@@ -451,50 +723,119 @@ icons.
     (setq org-agenda-skip-scheduled-if-done t
           org-agenda-skip-deadline-if-done t
           org-agenda-include-deadlines t
-          org-agenda-block-separator nil
+          org-agenda-block-separator ""
           org-agenda-compact-blocks nil
           org-agenda-start-day nil ;; i.e. today
           org-agenda-span 1
-          org-agenda-start-on-weekday nil)
+          org-agenda-start-on-weekday nil
+          ;; Timeline grid ticks: 10:00-18:00 only (drop 8:00 and 20:00).
+          org-agenda-time-grid '((daily today require-timed)
+                                 (1000 1200 1400 1600 1800)
+                                 "......" "----------------"))
+
+    ;; Date-bound super-agenda groups for a SINGLE-DAY view.  Shared by the
+    ;; Agenda's agenda block, the Calendar's day view, and the global default
+    ;; below — so all three single-day renders group identically.
+    ;; NOTE: org-super-agenda matches groups in LIST ORDER (first matching group
+    ;; claims the item); the :order keyword only sorts where sections are
+    ;; displayed.  ":scheduled today" matches both timed and untimed
+    ;; scheduled-today tasks, while ":time-grid t" matches only items with a
+    ;; time-of-day.  So "Schedule:" must come BEFORE "Scheduled today:" so timed
+    ;; tasks stay in the grid and only untimed ones fall through.
+    (defvar ps/agenda-day-super-groups
+      '((:name "Schedule:"          :time-grid t       :order 1)
+        (:name "Scheduled today:"   :scheduled today   :order 2)
+        (:name "Due today:"         :deadline today    :order 3)
+        (:name "Overdue:"           :deadline past     :order 4)
+        (:name "Scheduled earlier:" :scheduled past    :order 5)
+        (:name "Due soon:"          :deadline future   :order 6))
+      "Date-bound super-agenda groups for single-day agenda views.")
+
+    ;; Make the styled, grouped day layout the GLOBAL default, so Org's stock
+    ;; agenda (C-c a a) and clicking a timestamp in an org file (which both call
+    ;; `org-agenda-list' with no group override) render through the same pipeline
+    ;; instead of a raw, ungrouped list.  Views that want a flat list bind this
+    ;; to nil locally: `ps/show-tasks' (Tasks) and the Calendar's multi-day
+    ;; branch (which relies on Org's native per-day headers instead).
+    (setq org-super-agenda-groups ps/agenda-day-super-groups)
 
     (setq org-agenda-custom-commands
-          '(("c" "Super Agenda"
+          '(("c" "Agenda"
              ((agenda "" ((org-agenda-overriding-header "")
-                          (org-super-agenda-groups
-                           '((:name "Due today:"
-                                    :deadline today
-                                    :order 2)
-                             (:name "Overdue:"
-                                    :deadline past
-                                    :order 3)
-                             (:name "Scheduled earlier:"
-                                    :scheduled past
-                                    :order 4)
-                             (:name "Due soon:"
-                                    :deadline future
-                                    :order 5)
-                             (:name "Schedule:"
-                                    :time-grid t
-                                    :date today
-                                    :order 1)))))
+                          (org-super-agenda-groups ps/agenda-day-super-groups)))
               (tags-todo "+PRIORITY=\"A\""
-                         ((org-agenda-overriding-header "\n High-priority:")))
-              (todo "IN-PROGRESS"
-                    ((org-agenda-overriding-header "\n In progress:")))))
-            ("n" "NEXT tasks"
-             ((todo "NEXT")))))
+                         ((org-agenda-overriding-header " High-priority:")))
+              (todo "INPR"
+                    ((org-agenda-overriding-header " In progress:"))))
+             ;; Command-wide: the two todo blocks inherit a flat list (nil),
+             ;; and the whole view is tagged `agenda' so the layout module knows
+             ;; NOT to draw Calendar's span-switch controls here.
+             ((org-super-agenda-groups nil)
+              (ps/agenda-layout-view-kind 'agenda)))
+            ("g" "Calendar"
+             ;; A plain, ungrouped list of dated/timed tasks for every span.  No
+             ;; super-agenda sections and no time grid — week/month/year use Org's
+             ;; native per-day headers, which the layout module turns into
+             ;; left-aligned collapsible day sections under a span header.
+             ;; - The three *-days knobs scope every item to its OWN date only:
+             ;;   nothing is carried forward, warned about in advance, or shown as
+             ;;   overdue — overdue belongs in the Agenda, not the Calendar.
+             ;; - No `org-agenda-overriding-header': Org then emits the block
+             ;;   header line, which the layout module reformats into the top
+             ;;   control row (span label + nav + span buttons).
+             ;; - `org-agenda-start-on-weekday' aligns the week view to the
+             ;;   configured first weekday; `org-agenda-show-all-dates' nil skips
+             ;;   empty days in week/month/year.
+             ((agenda "" ((org-super-agenda-groups nil)
+                          (org-agenda-use-time-grid nil)
+                          (org-scheduled-past-days 0)
+                          (org-deadline-past-days 0)
+                          (org-deadline-warning-days 0)
+                          (org-agenda-start-on-weekday calendar-week-start-day)
+                          (org-agenda-show-all-dates nil)
+                          ;; Speed: the Calendar only shows dated tasks, so skip
+                          ;; diary sexps and the blocked-task computation Org
+                          ;; would otherwise do for every entry.  This roughly
+                          ;; halves the (per-day) scan a long span like a year
+                          ;; needs.
+                          (org-agenda-entry-types '(:deadline :scheduled :timestamp))
+                          (org-agenda-dim-blocked-tasks nil))))
+             ((ps/agenda-layout-view-kind 'calendar)))))
 
     :config
     (org-super-agenda-mode))
 #+end_src
 
-*** Emoji decoration + conflict check
-Logic lives in =lisp/ps-agenda-emoji.el= (it shells out to
-=scripts/org_emoji_matcher.py=). The conflict-check agenda hook from
-=ps-conflicts= is also registered here.
+*** Aligned layout, emoji, folding, conflict check
+The redesigned agenda layout lives in =lisp/ps-agenda-layout.el= (aligned
+columns + face-based badges). =ps-agenda-emoji.el=
+feeds it semantic emojis (via =scripts/org_emoji_matcher.py=);
+=ps-agenda-fold.el= adds collapsible sections. The conflict-check agenda hook
+from =ps-conflicts= is also registered here. Agenda lines are truncated (no
+wrapping) so the right-aligned scheduling pill always lands on screen.
 #+begin_src emacs-lisp
+  (ps/agenda-layout-setup)
   (ps/agenda-emoji-setup)
+  (ps/agenda-fold-setup)
   (add-hook 'org-agenda-finalize-hook #'ps/conflicts--agenda-schedule-check)
+  (add-hook 'org-agenda-mode-hook (lambda () (setq truncate-lines t)))
+#+end_src
+
+*** Uniform blank lines between agenda sections
+=org-agenda-block-separator= "" emits two newlines before each separate agenda
+block (=High-priority=, =In progress=), while org-super-agenda groups are
+single-spaced — so those two sections get an extra blank line. Collapse any run
+of more than one blank line so every section has exactly one blank line above
+it.
+#+begin_src emacs-lisp
+  (defun ps/agenda--single-blank-lines ()
+    "Collapse runs of >1 blank line in the agenda to a single blank line."
+    (let ((inhibit-read-only t))
+      (save-excursion
+        (goto-char (point-min))
+        (while (re-search-forward "\n\n\n+" nil t)
+          (replace-match "\n\n")))))
+  (add-hook 'org-agenda-finalize-hook #'ps/agenda--single-blank-lines)
 #+end_src
 
 *** Disable clock report (do not show in agenda)
@@ -543,6 +884,26 @@ function cell can't satisfy a runtime function call.
     ;; Disable modern bullets
     (setq org-modern-star nil)
 
+    ;; Let `valign' own table rendering (used in the docs reading view); when
+    ;; both are active they fight and tables render misaligned.
+    (setq org-modern-table nil)
+
+    ;; Tone down priority badges: use light weight instead of semibold so the
+    ;; colored fill is less visually dominant.  Color still comes from the theme's
+    ;; `org-priority' face, so this adapts automatically across themes.
+    (custom-set-faces
+     '(org-modern-priority
+       ((t :inherit (org-priority org-modern-label) :inverse-video t :weight light))))
+
+    ;; Show priorities as a compact " A " pill (drop the "#"), matching the
+    ;; agenda badge.  Mapping each priority char to a propertized label makes
+    ;; org-modern replace the whole [#A] cookie with it via `display', keeping
+    ;; the green `org-modern-priority' fill.
+    (setq org-modern-priority
+          (cl-loop for c from org-highest-priority to org-lowest-priority
+                   collect (cons c (propertize (format " %c " c)
+                                               'face 'org-modern-priority))))
+
     ;; TODO keyword + struck-through DONE headline. Solarized keeps the original
     ;; monochrome badge; other themes let the theme colour the TODO keyword and
     ;; derive the dim DONE colour from the `shadow' face.
@@ -552,6 +913,49 @@ function cell can't satisfy a runtime function call.
          '(org-headline-done ((t (:foreground "gray75" :strike-through t)))))
       (custom-set-faces
        '(org-headline-done ((t (:inherit shadow :strike-through t)))))))
+#+end_src
+
+*** Show formatting markup only at point (=org-appear=)
+Hides emphasis markers, link brackets, entities, and sub/superscripts until
+point enters them, revealing the raw syntax for editing — Obsidian-style live
+preview. The read-only docs viewer (=ps/help--setup-doc-buffer=) keeps markers
+statically hidden and is excluded below.
+#+begin_src emacs-lisp
+  ;; Master switches org-appear toggles dynamically; off by default in Emacs,
+  ;; on here so editing buffers render clean except right at point.
+  (setq org-hide-emphasis-markers t
+        org-pretty-entities       t)
+
+  ;; Flicker fix for editing inside a link.  While the cursor is in a link,
+  ;; org-appear reveals its raw syntax; but the typo checker re-marks the edited
+  ;; line, so on the next redisplay Org's own link fontification (`org-activate-
+  ;; links') re-folds the link — re-hiding it for a frame on every keystroke.
+  ;; Re-assert org-appear's reveal right after that re-fold, in the same
+  ;; fontification pass, so the screen never shows the collapsed form mid-edit.
+  ;; Use org-appear's tracked element (the cursor's), since during fontification
+  ;; `point' is font-lock's scan position, not the user's cursor.
+  (defun ps/org-appear--reassert-reveal (&rest _)
+    "Re-reveal the link/markup org-appear is showing for the cursor.
+Added as :after advice to `org-activate-links' to cancel the re-fold that Org's
+link fontification applies on every refontification while editing inside a link."
+    (when (and (bound-and-true-p org-appear-mode)
+               (bound-and-true-p org-appear--elem-toggled)
+               (bound-and-true-p org-appear--prev-elem))
+      (ignore-errors (org-appear--show-invisible org-appear--prev-elem))))
+
+  (use-package org-appear
+    :ensure t
+    :hook (org-mode . (lambda ()
+                         (unless (ps/help--doc-buffer-p)
+                           (org-appear-mode 1))))
+    :config
+    (setq org-appear-autoemphasis    t   ; *bold*, /italic/, =code=, etc.
+          org-appear-autolinks       t   ; [[target][desc]]
+          org-appear-autosubmarkers  t   ; x_1, x^2
+          org-appear-autoentities    t   ; \alpha, \rightarrow
+          org-appear-autokeywords    t   ; items in `org-hidden-keywords'
+          org-appear-inside-latex    t)  ; entities/sub-superscript inside $...$
+    (advice-add 'org-activate-links :after #'ps/org-appear--reassert-reveal))
 #+end_src
 
 *** Replace SCHEDULED / DEADLINE labels with icons
@@ -620,9 +1024,40 @@ The DONE collapse/expand commands themselves live in =lisp/ps-done.el=.
 #+begin_src emacs-lisp
   ;; Auto-save all Org buffers
   ;; https://christiantietze.de/posts/2019/03/sync-emacs-org-files/
-  (add-hook 'auto-save-hook 'org-save-all-org-buffers)
+  ;; Save quietly: `org-save-all-org-buffers' echoes "Saving all Org
+  ;; buffers... done" on every auto-save, which both flashes in the echo
+  ;; area and piles up in *Messages* when Emacs runs for days.  Binding
+  ;; `inhibit-message' suppresses the echo-area flash and `message-log-max'
+  ;; nil keeps it out of *Messages*; the save itself is unchanged.
+  (defun ps/org-save-all-org-buffers-quietly ()
+    "Save all Org buffers without echoing/logging the save message."
+    (let ((inhibit-message t) (message-log-max nil))
+      (org-save-all-org-buffers)))
+  (add-hook 'auto-save-hook #'ps/org-save-all-org-buffers-quietly)
 
-  ;; Automatically revert buffers when files change on disk
+  ;; Obsidian-like persistence. The idle auto-save above keeps files current
+  ;; while editing; these two close the remaining gaps so the mode line never
+  ;; needs a "modified" indicator:
+  ;;   - save the moment Emacs loses focus (e.g. switching to another app), and
+  ;;   - save just before exit, so quitting never prompts "Save buffer?".
+  (defun ps/org-save-on-focus-loss ()
+    "Save all Org buffers when Emacs loses focus."
+    (unless (frame-focus-state)
+      (ps/org-save-all-org-buffers-quietly)))
+  (add-function :after after-focus-change-function #'ps/org-save-on-focus-loss)
+  (advice-add 'save-buffers-kill-emacs :before
+              (lambda (&rest _) (ps/org-save-all-org-buffers-quietly)))
+
+  ;; Automatically revert buffers when files change on disk.
+  ;; Rely on file-system notifications instead of the default ~5s polling
+  ;; timer. On the macOS (NS) build, a redisplay forced from inside a timer
+  ;; while Emacs is idle can re-enter AppKit's event loop and hard-freeze the
+  ;; whole UI (no keyboard/mouse input). Notification-based reverts avoid that
+  ;; recurring timer, and silencing revert output avoids extra echo-area
+  ;; redisplay.
+  (setq auto-revert-avoid-polling t
+        auto-revert-verbose nil
+        auto-revert-check-vc-info nil)
   (global-auto-revert-mode t)
 #+end_src
 
@@ -634,6 +1069,18 @@ The DONE collapse/expand commands themselves live in =lisp/ps-done.el=.
 *** Don't collapse yanked (pasted) subtrees
 #+begin_src emacs-lisp
   (setq org-yank-folded-subtrees nil)
+#+end_src
+
+*** Comment/uncomment inside source blocks uses the block's language (ps-org-src-comment.el)
+=C-x C-;= normally toggles org's own =# = comment prefix, which doesn't
+recognize a language's native line-comment syntax (e.g. Lisp's =;; =) as
+already commented — so "uncommenting" example code inside a =#+begin_src=
+block would just add another prefix on top instead of removing one. Inside a
+src block, =ps/org-src-comment-dwim= toggles the block's own comment prefix
+line-by-line over the region (or current line) instead, keeping the markers
+aligned in a single column the way =comment-region= does.
+#+begin_src emacs-lisp
+  (define-key org-mode-map (kbd "C-x C-;") #'ps/org-src-comment-dwim)
 #+end_src
 
 *** =org-journal=
@@ -652,6 +1099,43 @@ The DONE collapse/expand commands themselves live in =lisp/ps-done.el=.
 #+begin_src emacs-lisp
   ;; https://emacs.stackexchange.com/questions/42571/org-agenda-date-prompt-mini-calendar-start-week-on-monday
   (setq calendar-week-start-day 1)
+
+  ;; With two windows side by side, the date-entry calendar (org-read-date)
+  ;; would otherwise pop up by reusing the other content window, clobbering the
+  ;; buffer the date is being inserted into. Route *Calendar* to a short,
+  ;; full-width transient window at the bottom of the frame instead, so the
+  ;; existing windows stay put. (org-read-date restores the layout on exit.)
+  (add-to-list 'display-buffer-alist
+               '("\\*Calendar\\*"
+                 (display-buffer-at-bottom)
+                 (window-height . fit-window-to-buffer)
+                 (dedicated . t)))
+#+end_src
+
+*** Agenda dispatcher pops up at the bottom
+The =C-c a= dispatcher menu (the transient =*Agenda Commands*= chooser) is shown
+by Org with =org-display-buffer-split=, which splits or reuses a window
+inconsistently depending on how many windows are open. Route it to a short,
+full-width transient window at the bottom — the same treatment as =*Calendar*= —
+so it always appears in the same place. Only the chooser is affected; the actual
+=*Org Agenda*= result buffer keeps its normal full-window display.
+#+begin_src emacs-lisp
+  (add-to-list 'display-buffer-alist
+               '("\\*Agenda Commands\\*"
+                 (display-buffer-at-bottom)
+                 (window-height . fit-window-to-buffer)
+                 (dedicated . t)))
+#+end_src
+
+*** Typo / spell checking (ps-typo.el)
+Logic lives in =lisp/ps-typo.el=; knobs are in the Typo / Spell Settings block
+above. =jinx= is the spell engine (needs =enchant=; see README.md) and
+=guess-language= powers optional suggestion ordering. If =enchant= is not
+installed yet, setup degrades gracefully and Org still loads normally.
+#+begin_src emacs-lisp
+  (use-package jinx :ensure t)
+  (use-package guess-language :ensure t)
+  (ps/typo-setup)
 #+end_src
 
 * Workflow
@@ -766,9 +1250,14 @@ The ignore list and category icons live in =lisp/ps-file-tree.el= and
     :commands (treemacs treemacs-select-window)
     :config
     (ps/file-tree-setup-ignore)
+    (ps/file-tree--ensure-valid-set)
     (if ps/file-tree-use-custom-icons
-        (ps/file-tree-icons-apply ps/file-tree-icon-dirs my-org-base-directory)
+        (ps/file-tree-icons-apply my-org-base-directory)
       (treemacs-load-theme "Default"))
+
+    ;; Replace the file tree's mode line entirely with the active file-set
+    ;; indicator; click it to switch sets.
+    (setq treemacs-user-mode-line-format '(:eval (ps/file-tree--modeline)))
 
     ;; Root project labels (Areas/Current/Vision) should look like ordinary
     ;; file-tree entries (not underlined or oversized like the default
@@ -796,9 +1285,23 @@ The ignore list and category icons live in =lisp/ps-file-tree.el= and
     (treemacs-follow-mode -1)
     (treemacs-tag-follow-mode -1)
 
+    ;; This is a curated org-category navigator, not a code-project view, so
+    ;; don't tint files by git status (a modified file would otherwise show in
+    ;; treemacs-git-modified-face, e.g. blue, hiding the category styling).
+    (when (fboundp 'treemacs-git-mode) (treemacs-git-mode -1))
+
     (add-hook 'treemacs-mode-hook (lambda () (display-line-numbers-mode 0)))
     (add-hook 'treemacs-mode-hook
       (lambda () (setq-local frame-title-format "File Tree")))
+
+    ;; Keep the tree pinned at column 0. Without this, resizing the frame can
+    ;; push point off-screen to the right and auto-hscroll scrolls the window
+    ;; sideways, cutting off the left edge. Truncating (like the agenda does)
+    ;; and disabling auto-hscroll keeps it from ever scrolling horizontally.
+    (add-hook 'treemacs-mode-hook
+      (lambda ()
+        (setq-local truncate-lines t)
+        (setq-local auto-hscroll-mode nil)))
 
     ;; Restore some vertical breathing room between entries.
     (add-hook 'treemacs-mode-hook (lambda () (setq-local line-spacing 2)))
@@ -836,11 +1339,26 @@ The ignore list and category icons live in =lisp/ps-file-tree.el= and
     ;; (org-agenda's default window setup would otherwise close it).
     (with-eval-after-load 'org-agenda
       (define-advice org-agenda (:around (orig-fn &rest args) ps/file-tree-preserve)
-        "Keep the file tree visible across agenda window reorganization."
-        (let ((open (ps/file-tree-window-exists-p)))
-          (when open (ps/file-tree-hide))
-          (apply orig-fn args)
-          (when open (ps/file-tree-show))))))
+        "Keep the file tree visible across agenda window reorganization.
+When the dispatcher is shown (no command key given up front), leave the tree
+in place while choosing; it is restored after the agenda is built either way."
+        (let ((open (ps/file-tree-window-exists-p))
+              (dispatcher (null (nth 1 args))))
+          (when (and open (not dispatcher)) (ps/file-tree-hide))
+          (unwind-protect (apply orig-fn args)
+            (when open (ps/file-tree-show)))))
+
+      ;; Show the agenda dispatcher (` *Agenda Commands*') as a bottom strip
+      ;; without collapsing the frame.  Org's `org-display-buffer-split' calls
+      ;; `delete-other-windows' before showing it; suppress that while the
+      ;; chooser is up so the rest of the frame (file tree, splits) stays put.
+      ;; The binding is reverted before any command runs, so the final agenda
+      ;; build still does its normal `reorganize-frame' split.
+      (define-advice org-agenda-get-restriction-and-command
+          (:around (orig-fn &rest args) ps/agenda-dispatcher-keep-frame)
+        "Show the agenda dispatcher as a bottom strip without collapsing the frame."
+        (cl-letf (((symbol-function 'delete-other-windows) #'ignore))
+          (apply orig-fn args)))))
 
   ;; Open the file tree at `my-org-base-directory' on startup, one project per
   ;; immediate subdirectory, fully expanded. treemacs expands directories
@@ -929,19 +1447,28 @@ Logic lives in =lisp/ps-blank-lines.el=.
   (global-set-key [f8] #'ps/file-tree-toggle)
 #+end_src
 
-** F9 — show agenda
+** F9 — show Tasks
 #+begin_src emacs-lisp
-  ;; Show the agenda with the "NEXT" tasks and delete other windows, keeping
-  ;; the file tree visible (delete-other-windows would otherwise close it).
-  (defun ps/show-agenda ()
+  ;; Show the Tasks view (all open tasks across the agenda files) and delete
+  ;; other windows, keeping the file tree visible (delete-other-windows would
+  ;; otherwise close it).  Uses `org-todo-list' so the native keyword-selector
+  ;; header is shown (press e.g. `1 r' to switch keyword); filter live with
+  ;; / (tag), = (regexp), < (category), _ (effort).  The mode line, line-number
+  ;; gutter, and emoji-off are applied by `ps/mode-line--agenda-finalize', keyed
+  ;; off the dynamically-bound view name below.
+  (defun ps/show-tasks ()
+    "Open the Tasks view: all open tasks (`org-todo-list')."
     (interactive)
-    (let ((open (ps/file-tree-window-exists-p)))
+    ;; Keep a flat list: the global `org-super-agenda-groups' day default would
+    ;; otherwise lump every untimed task under an "Other items" header.
+    (let ((open (ps/file-tree-window-exists-p))
+          (org-super-agenda-groups nil))
       (when open (ps/file-tree-hide))
-      (org-todo-list "NEXT")
+      (org-todo-list)
       (delete-other-windows)
       (when open (ps/file-tree-show))))
 
-  (global-set-key [f9] 'ps/show-agenda)
+  (global-set-key [f9] 'ps/show-tasks)
 #+end_src
 
 ** F10 — open this config file
@@ -951,6 +1478,68 @@ Logic lives in =lisp/ps-blank-lines.el=.
     (find-file (expand-file-name "config.org" user-emacs-directory)))
 
   (global-set-key [f10] 'ps/open-config-file)
+
+  (defun ps/reload-config ()
+    "Re-tangle and re-evaluate config.org, applying most settings live."
+    (interactive)
+    (org-babel-load-file (expand-file-name "config.org" user-emacs-directory))
+    (message "Config reloaded"))
+#+end_src
+
+** Help — open the documentation in Emacs
+The user docs live in =docs/*.org=. =ps/help-open-doc= opens one (the index by
+default); the Productivity → Help menu and =C-c p h= use it.
+
+Docs are meant for *reading*, so any =.org= under =docs/= opens read-only and
+with the Org emphasis markers hidden (a clean, rendered look). =valign= keeps
+tables visually aligned even with the markers hidden; inter-doc links navigate
+in the same window, and each page carries a "back to index" link. To edit a doc
+from inside Emacs, toggle read-only with =C-x C-q=.
+#+begin_src emacs-lisp
+  ;; valign: visually align org tables even when emphasis markers / inline code
+  ;; are hidden (the doc reading view), where source-width alignment alone fails.
+  ;; `valign-fancy-bar' draws solid box-drawing separators so tables look like
+  ;; real tables rather than ASCII art.
+  (use-package valign
+    :ensure t :defer t
+    :config (setq valign-fancy-bar t))
+
+  (defun ps/help--docs-dir ()
+    "Absolute path of the documentation directory."
+    (expand-file-name "docs/" user-emacs-directory))
+
+  (defun ps/help--doc-buffer-p ()
+    "Non-nil if the current buffer visits a file under `docs/'."
+    (and buffer-file-name
+         (string-prefix-p (ps/help--docs-dir)
+                          (expand-file-name buffer-file-name))))
+
+  (defun ps/help--setup-doc-buffer ()
+    "Apply the read-only, cleanly-rendered reading view to a doc buffer.
+Inter-doc links are routed through `ps/file-tree-visit-file' so they reuse the
+documentation's editor window instead of ever opening a new one."
+    (when (and (derived-mode-p 'org-mode) (ps/help--doc-buffer-p))
+      (setq-local org-hide-emphasis-markers t)
+      (setq-local org-link-frame-setup
+                  (cons '(file . ps/file-tree-visit-file)
+                        (assq-delete-all 'file (copy-alist org-link-frame-setup))))
+      (font-lock-flush)
+      (when (require 'valign nil t) (valign-mode 1))
+      ;; Docs are read-only, so never spell-check them.  `ps/typo--enable' already
+      ;; skips them, but turn the checker off here too in case the buffer arrived
+      ;; with it on — e.g. one restored from a previous session.
+      (when (bound-and-true-p jinx-mode) (jinx-mode -1))
+      (read-only-mode 1)))
+  (add-hook 'org-mode-hook #'ps/help--setup-doc-buffer)
+
+  (defun ps/help-open-doc (&optional file)
+    "Open documentation FILE (relative to docs/), defaulting to the index.
+Opens in the most-recently-used editor window (never the dedicated file-tree
+window), reusing it rather than spawning an extra window."
+    (interactive)
+    (ps/file-tree-visit-file
+     (expand-file-name (concat "docs/" (or file "Index.org"))
+                       user-emacs-directory)))
 #+end_src
 
 ** Toggle horizontal/vertical split (=C-x |=)
@@ -958,7 +1547,8 @@ Logic lives in =lisp/ps-blank-lines.el=.
   ;; Partially reuses the code from:
   ;; https://emacs.stackexchange.com/questions/5371/how-to-change-emacs-windows-from-vertical-split-to-horizontal-split
   (defun ps/window-split-toggle ()
-    "Toggle between horizontal and vertical split with exactly two windows, preserving buffer order."
+    "Switch the two windows between a horizontal (top/bottom) and vertical
+\(left/right) split, keeping their order: left<->top and right<->bottom."
     (interactive)
     ;; Check if the file tree is open
     (let ((tree-open (ps/file-tree-window-exists-p)))
@@ -968,11 +1558,21 @@ Logic lives in =lisp/ps-blank-lines.el=.
       ;; Check if there are exactly two windows
       (if (/= (length (window-list)) 2)
           (error "Can only toggle with exactly 2 windows!")
-        (let* ((win1 (nth 0 (window-list)))
-               (win2 (nth 1 (window-list)))
+        ;; Order the windows geometrically (top-left first) rather than by
+        ;; `window-list' order, which starts at the selected window and would
+        ;; otherwise make placement depend on which pane is focused.
+        (let* ((ordered (sort (window-list)
+                              (lambda (a b)
+                                (let ((ea (window-edges a))
+                                      (eb (window-edges b)))
+                                  (if (= (nth 1 ea) (nth 1 eb))
+                                      (< (nth 0 ea) (nth 0 eb))   ;; same top: leftmost first
+                                    (< (nth 1 ea) (nth 1 eb))))))) ;; otherwise topmost first
+               (win1 (nth 0 ordered))
+               (win2 (nth 1 ordered))
                (buf1 (window-buffer win1))
                (buf2 (window-buffer win2))
-               (split-func (if (window-full-height-p)
+               (split-func (if (window-full-height-p win1)
                                #'split-window-vertically
                              #'split-window-horizontally)))
           (delete-other-windows win1)
@@ -1038,10 +1638,78 @@ muscle memory; remove them later if you outgrow them.
   (define-key global-map [menu-bar tools]   nil)
 
   ;; Tiny wrapper around the agenda custom command "c" so we can bind/menu it.
-  (defun ps/show-super-agenda ()
-    "Open the Super Agenda custom command (the one normally launched by =C-c a c=)."
+  (defun ps/show-agenda ()
+    "Open the Agenda — the main planning view (custom command =c=).
+Shows the daily schedule, deadlines, high-priority and in-progress
+tasks.  Compact by design: no position indicator, no line-number gutter.
+The mode line/chrome is applied by `ps/mode-line--agenda-finalize'."
     (interactive)
     (org-agenda nil "c"))
+
+  (define-obsolete-function-alias 'ps/show-super-agenda 'ps/show-agenda "2026-06")
+
+  ;; Calendar view (custom command "g"): a pure date/time view, switchable
+  ;; between day / week / month / year and arbitrary spans.  SPAN sets the
+  ;; initial span; the in-buffer header (D W M Y / N… / ±) switches it later.
+  (defun ps/show-calendar (&optional span)
+    "Open the Calendar — the date/time view (custom command =g=).
+With SPAN (a span symbol or a number of days) open at that span; otherwise
+open at the default single-day span.  Week/month/year open aligned to the
+calendar boundary containing the start day (e.g. the whole current week)."
+    (interactive)
+    (require 'org-agenda)
+    (let* ((span (or span org-agenda-span))
+           (org-agenda-start-on-weekday calendar-week-start-day)
+           (base (if org-agenda-start-day
+                     (time-to-days (org-time-string-to-time org-agenda-start-day))
+                   (org-today)))
+           (org-agenda-start-day
+            (if (memq span '(week fortnight month year))
+                (format-time-string
+                 "%Y-%m-%d"
+                 (org-time-from-absolute
+                  (org-agenda-compute-starting-span base span)))
+              org-agenda-start-day))
+           (org-agenda-span span))
+      (org-agenda nil "g")))
+
+  (defun ps/show-calendar-day ()   "Open the Calendar at a day."   (interactive) (ps/show-calendar 'day))
+  (defun ps/show-calendar-week ()  "Open the Calendar at a week."  (interactive) (ps/show-calendar 'week))
+  (defun ps/show-calendar-month () "Open the Calendar at a month." (interactive) (ps/show-calendar 'month))
+  (defun ps/show-calendar-year ()  "Open the Calendar at a year."  (interactive) (ps/show-calendar 'year))
+
+  ;; Clicking (or C-c C-o on) a date stamp in an Org file should open OUR Calendar
+  ;; at that date — the same view as the menu / C-c p c — not Org's stock grouped
+  ;; agenda.  Override `org-follow-timestamp-link' to run the Calendar command "g"
+  ;; with the clicked date as the start day (a date range opens that many days).
+  (defun ps/calendar-follow-timestamp ()
+    "Open the Calendar at the timestamp or date-range at point."
+    (require 'org-agenda)
+    (cond
+     ((org-at-date-range-p t)
+      (let* ((t1 (match-string 1))
+             (t2 (match-string 2))
+             (d1 (time-to-days (org-time-string-to-time t1)))
+             (d2 (time-to-days (org-time-string-to-time t2)))
+             (org-agenda-start-day (substring t1 0 10))
+             (org-agenda-span (max 1 (1+ (- d2 d1)))))
+        (org-agenda nil "g")))
+     ((org-at-timestamp-p 'lax)
+      (let ((org-agenda-start-day (substring (match-string 1) 0 10))
+            (org-agenda-span 'day))
+        (org-agenda nil "g")))
+     (t (user-error "Not on a timestamp"))))
+  (advice-add 'org-follow-timestamp-link :override #'ps/calendar-follow-timestamp)
+
+  ;; Sub-keymap so C-c p c c opens the Calendar and C-c p c d/w/m/y jump to a span.
+  (defvar ps/calendar-keymap (make-sparse-keymap)
+    "Prefix keymap for the Calendar view and its spans, bound at `C-c p c'.")
+  (let ((c ps/calendar-keymap))
+    (define-key c (kbd "c") #'ps/show-calendar)         ; c c → Calendar (default day)
+    (define-key c (kbd "d") #'ps/show-calendar-day)     ; c d → Day
+    (define-key c (kbd "w") #'ps/show-calendar-week)    ; c w → Week
+    (define-key c (kbd "m") #'ps/show-calendar-month)   ; c m → Month
+    (define-key c (kbd "y") #'ps/show-calendar-year))   ; c y → Year
 
   ;; Productivity prefix keymap (mnemonic suffixes under C-c p).
   (defvar ps/productivity-keymap (make-sparse-keymap)
@@ -1049,9 +1717,10 @@ muscle memory; remove them later if you outgrow them.
   (global-set-key (kbd "C-c p") ps/productivity-keymap)
   (let ((m ps/productivity-keymap))
     ;; Plan & review
-    (define-key m (kbd "a") #'ps/show-super-agenda)         ; a → "agenda"
+    (define-key m (kbd "a") #'ps/show-agenda)               ; a → Agenda
+    (define-key m (kbd "c") ps/calendar-keymap)            ; c → Calendar (sub-keymap)
     (define-key m (kbd "A") #'org-agenda)                   ; A → full chooser
-    (define-key m (kbd "n") #'ps/show-agenda)               ; n → NEXT
+    (define-key m (kbd "n") #'ps/show-tasks)                ; n → Tasks (all open)
     (define-key m (kbd "v") #'ps/org-show-availability)     ; v → aVailability
     (define-key m (kbd "x") #'ps/show-conflicts)            ; x → conflicts/clashes
     ;; Capture & notes
@@ -1069,25 +1738,45 @@ muscle memory; remove them later if you outgrow them.
     (define-key m (kbd "t") #'ps/shift-timezone)            ; t → timezone
     ;; Sync & VC
     (define-key m (kbd "s") #'ps/git-sync-toggle)           ; s → sync toggle
-    (define-key m (kbd "S") #'ps/git-sync-resume)           ; S → resume Sync
     ;; Layout & navigation
     (define-key m (kbd "1") #'delete-other-windows)         ; 1 → focus current buffer
     (define-key m (kbd "|") #'ps/window-split-toggle)       ; | → swap split direction
     (define-key m (kbd "f") #'recentf-open-files)           ; f → recent Files
     (define-key m (kbd "i") #'imenu)                        ; i → imenu
+    (define-key m (kbd "F") #'ps/file-tree-cycle-file-set)  ; F → File set (cycle)
+    (define-key m (kbd "g") #'ps/file-tree-toggle-agenda-filter) ; g → aGenda filter toggle
     ;; Config
-    (define-key m (kbd "C") #'ps/open-config-file)          ; C → Config
-    (define-key m (kbd "T") #'ps/preview-theme))            ; T → Theme preview
+    (define-key m (kbd "C") #'ps/open-config-file)          ; C → global Config
+    (define-key m (kbd "R") #'ps/reload-config)             ; R → Reload global config
+    (define-key m (kbd "W") #'ps/open-workspace-config)     ; W → open Workspace config
+    (define-key m (kbd "w") #'ps/reload-workspace-config)   ; w → reload Workspace config
+    (define-key m (kbd "T") #'ps/preview-theme)             ; T → Theme preview
+    ;; Help
+    (define-key m (kbd "h") #'ps/help-open-doc))            ; h → Help / docs index
 
   (easy-menu-define ps/productivity-menu global-map
     "Productivity tools menu (Org planning, links, sync, etc.)."
     '("Productivity"
       ("Plan & Review"
-       ["Super Agenda"        ps/show-super-agenda     :keys "C-c a c"]
-       ["Show NEXT Tasks"     ps/show-agenda           :keys "C-c p n"]
+       ["Agenda"              ps/show-agenda           :keys "C-c p a"]
+       ("Calendar"
+        ["Open (Day)"         ps/show-calendar         :keys "C-c p c c"]
+        ["Day"                ps/show-calendar-day     :keys "C-c p c d"]
+        ["Week"               ps/show-calendar-week    :keys "C-c p c w"]
+        ["Month"              ps/show-calendar-month   :keys "C-c p c m"]
+        ["Year"               ps/show-calendar-year    :keys "C-c p c y"])
+       ["Tasks"               ps/show-tasks            :keys "C-c p n   /   F9"]
        ["Full Agenda…"        org-agenda               :keys "C-c a"]
        ["Show Availability"   ps/org-show-availability :keys "C-c p v"]
        ["Check Conflicts"     ps/show-conflicts        :keys "C-c p x"])
+      ("Schedule View"
+       ["Timeline" (ps/schedule-view-set-style 'timeline)
+        :style radio :selected (eq ps/schedule-view-style 'timeline)]
+       ["Events"   (ps/schedule-view-set-style 'events)
+        :style radio :selected (eq ps/schedule-view-style 'events)]
+       "---"
+       ["Auto-refresh (every minute)" ps/schedule-view-toggle-auto-refresh
+        :style toggle :selected ps/schedule-view-auto-refresh])
       ("Capture & Notes"
        ["Capture…"            org-capture              :keys "C-c p k"]
        ["New Journal Entry"   org-journal-new-entry    :keys "C-c p j"]
@@ -1111,12 +1800,16 @@ muscle memory; remove them later if you outgrow them.
         :style toggle
         :selected (not (and (boundp 'ps/git-sync-paused) ps/git-sync-paused))
         :keys "C-c p s"]
-       ["Resume Git Sync"   ps/git-sync-resume :keys "C-c p S"]
        ["Magit Status"      magit-status       :keys "C-x g"])
       ("Layout & Navigation"
        ["Focus Current Buffer"      delete-other-windows     :keys "C-x 1"]
-       ["Toggle Window Split (H/V)" ps/window-split-toggle   :keys "C-c p |   /   C-x |"]
+       ["Switch Split: Horizontal <-> Vertical" ps/window-split-toggle   :keys "C-c p |   /   C-x |"]
        ["Toggle File Tree"          ps/file-tree-toggle      :keys "F8"]
+       ["Cycle File Set"            ps/file-tree-cycle-file-set :keys "C-c p F"]
+       ["File Set Restricts Agenda" ps/file-tree-toggle-agenda-filter
+        :style toggle
+        :selected ps/file-tree-set-applies-to-agenda
+        :keys "C-c p g"]
        ["Recent Files…"             recentf-open-files       :keys "C-c p f"]
        ["Imenu (jump to heading)"   imenu                    :keys "C-c p i"])
       ("AI Assistant"
@@ -1137,10 +1830,23 @@ muscle memory; remove them later if you outgrow them.
        ["Hybrid search…"              ps/org-db-search             :keys "C-c g h"]
        ["Sync notes index"            ps/org-db-sync-directory     :keys "C-c g i"])
       ("Config"
-       ["Open Config File"        ps/open-config-file        :keys "C-c p C   /   F10"]
+       ("Global"
+        ["Open config.org"        ps/open-config-file        :keys "C-c p C   /   F10"]
+        ["Reload"                 ps/reload-config           :keys "C-c p R"])
+       ("Workspace"
+        ["Open workspace.org"     ps/open-workspace-config   :keys "C-c p W"]
+        ["Reload"                 ps/reload-workspace-config :keys "C-c p w"])
        ["Preview Color Theme…"    ps/preview-theme           :keys "C-c p T"]
        ["Customize ps/* Settings"
-        (lambda () (interactive) (customize-apropos "^ps/")) t])))
+        (lambda () (interactive) (customize-apropos "^ps/")) t])
+      ("Help"
+       ["Documentation (Index)" (ps/help-open-doc "Index.org") :keys "C-c p h"]
+       "---"
+       ["Keybinding Cheat Sheet" (ps/help-open-doc "Keybindings.org") t]
+       ["The Agenda"            (ps/help-open-doc "Agenda.org") t]
+       ["Planning Setup"        (ps/help-open-doc "Planning-setup.org") t]
+       "---"
+       ["About this configuration" (ps/help-open-doc "About.org") t])))
 
   ;; Pin the menu just before Help. Final-items is rendered in list order, so
   ;; prepending puts us to the left of help-menu (which stays last).
@@ -1180,9 +1886,32 @@ a session (by =ps/git-sync-resume=, a menu toggle, or conflict handling).
   ;; Save the kill-ring to the history
   (add-to-list 'savehist-additional-variables 'kill-ring)
 
+  ;; Persist the selected file-tree file set across restarts
+  (add-to-list 'savehist-additional-variables 'ps/file-tree-current-set)
+
+  ;; Persist whether the file-tree set also restricts the agenda
+  (add-to-list 'savehist-additional-variables 'ps/file-tree-set-applies-to-agenda)
+
+  ;; Re-apply the agenda file-set filter using the persisted set/toggle
+  ;; values, which savehist-mode has just restored above.
+  (ps/agenda-files-refresh)
+
   ;; Reload desktop without asking
   ;; https://www.gnu.org/software/emacs/manual/html_node/emacs/Saving-Emacs-Sessions.html
   (setq desktop-load-locked-desktop t)
+
+  ;; Desktop restores each buffer's saved minor modes *after* the mode hooks
+  ;; run, so a doc buffer saved with the typo checker on comes back with it on
+  ;; despite the doc-buffer exclusion.  Once the whole session is restored, turn
+  ;; the checker back off in every (read-only) documentation buffer.
+  (add-hook 'desktop-after-read-hook
+            (lambda ()
+              (dolist (buf (buffer-list))
+                (with-current-buffer buf
+                  (when (and (derived-mode-p 'org-mode)
+                             (ps/help--doc-buffer-p)
+                             (bound-and-true-p jinx-mode))
+                    (jinx-mode -1))))))
 #+end_src
 
 ** Backup and autosave configuration
