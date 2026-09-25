@@ -77,8 +77,8 @@ and are being brought into the shape above.
   rebuilt into aligned columns with badges.
 - [`schedule-view.md`](planning/schedule-view.md) — The Schedule section drawn
   as a timeline or a list of events instead of Org's time grid.
-- `situations.md` — *planned.* Context tags and the saved searches built on
-  them.
+- [`situations.md`](planning/situations.md) — Context tags as affordances, and
+  the saved searches ("situations") derived from one declaration.
 - [`capture-chat.md`](planning/capture-chat.md) — *to rewrite* (a prompt). To
   become `capture.md`, or be dropped in favour of the info-triage project.
 
@@ -88,8 +88,9 @@ and are being brought into the shape above.
   blank lines mobile Org apps strip, from the file's git history.
 - [`typo-checker.md`](editing/typo-checker.md) — High-precision, multilingual
   spell checking.
-- `org-display-fixes.md` — *planned.* The font-lock and display fixes in Org
-  buffers, which can break one another.
+- [`org-display-fixes.md`](editing/org-display-fixes.md) — The font-lock and
+  display fixes in Org buffers (revealed markup, heading stars, tag pills, DONE
+  fading, selection, gutter, reading width), which can break one another.
 
 ### Interface — `interface/`
 
@@ -99,18 +100,19 @@ and are being brought into the shape above.
   what it shows, and everything it leaves out.
 - [`scroll-indicator.md`](interface/scroll-indicator.md) — The auto-hiding
   scroll indicator that replaces the native scroll bar.
-- `icons.md` — *planned.* The Material Symbols icon pipeline shared by the
-  agenda, the file tree and the folder listing.
+- [`icons.md`](interface/icons.md) — The Material Symbols icon pipeline shared
+  by the agenda, the file tree and the folder listing.
 
 ### Files and windows — `files-and-windows/`
 
 - [`file-tree.md`](files-and-windows/file-tree.md) — The treemacs side panel:
   how it is bent into a navigator for notes, how its width holds, and the four
   treemacs workarounds it depends on.
-- `windows.md` — *planned.* Which window a view opens in, and why side panels
-  never count.
-- `opening-and-navigation.md` — *planned.* One dispatcher for opening files,
-  how clicks are handled, and back/forward history.
+- [`windows.md`](files-and-windows/windows.md) — Which window a view opens in,
+  and why side panels never count.
+- [`opening-and-navigation.md`](files-and-windows/opening-and-navigation.md) —
+  One dispatcher for opening files, how a single click follows a link, and
+  back/forward history.
 
 ### AI — `ai/`
 
@@ -127,6 +129,6 @@ and are being brought into the shape above.
 - [`macos.md`](platform/macos.md) — macOS-specific behaviour: the freeze fixed
   by the patches in [`patches/`](../patches/), the habits that keep its exposure
   low, and the platform facts other modules depend on.
-- `upstream-workarounds.md` — *planned.* Every workaround for a bug in Emacs or
-  a package: the bug, how to tell it has been fixed, and how to remove the
-  workaround.
+- [`upstream-workarounds.md`](platform/upstream-workarounds.md) — Every
+  workaround for a bug in Emacs or a package: the bug, where the workaround
+  lives, and when it can go.
