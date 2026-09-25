@@ -1,0 +1,149 @@
+#+TITLE: Semantic search over org notes: evaluation
+#+DATE: 2026-06-11
+
+Spike to evaluate options for semantic/full-text search over the org notes
+directory, as a follow-up to the gptel ~list_notes~/~read_note~/~search_notes~
+tools added in =lisp/ps-gptel.el=. Evaluated against
+=samples/realistic/= (21 org files).
+
+* Baseline: minimal in-house (ripgrep + gptel tools)
+
+Already implemented (=ps/gptel-tool--list-notes=, =ps/gptel-tool--read-note=,
+=ps/gptel-tool--search-notes= in =lisp/ps-gptel.el=). No extra processes,
+databases, or dependencies; ripgrep full-text search only (no semantic
+matching).
+
+- Footprint: zero (ripgrep is already a dependency).
+- Latency: effectively instant for a notes directory this size.
+- Maintenance: none.
+- Limitation: purely lexical. A query like "things I want to do to improve
+  my sleep and reduce caffeine" won't find a heading that says "Reduce
+  caffeine after 15:00" unless the words overlap.
+
+This is the bar the other options need to clear to be worth the extra
+complexity.
+
+* org-db-v3 (github.com/jkitchin/org-db-v3)
+
+** What it is
+
+Hybrid Emacs + Python architecture: a local FastAPI server
+(=org_db_server=) holds three SQLite databases (metadata/FTS5, semantic
+chunks + embeddings via libsql vector search, CLIP image embeddings). The
+Emacs side parses org files with =org-element= and POSTs structured data
+(headlines, links, properties, src blocks, content) to the server for
+indexing; search is done via HTTP from a transient menu
+(~org-db-v3-semantic-search~, ~org-db-v3-fulltext-search~,
+~org-db-v3-search-at-point~, etc.), with gptel tool integration built in.
+
+** What was tested
+
+- Cloned the repo, ran =uv sync= in =python/= -- resolved cleanly (~80
+  packages, dominated by torch/transformers/sentence-transformers, which
+  were already cached locally so this added only a couple of GB to disk).
+- Started the FastAPI server (=uv run uvicorn org_db_server.main:app --port
+  8765=) pointed at scratch DB files.
+- Indexed all 21 sample org files directly via the =/api/file= endpoint
+  (bypassing the Emacs client -- just posted filename/md5/content for each
+  file, which is enough to exercise FTS5 + chunking + embeddings).
+- Ran semantic and full-text queries via =/api/search/semantic= and
+  =/api/search/fulltext=.
+
+** Results
+
+- Indexing 21 files: fast (a few seconds total), produced a 3.5 MB combined
+  DB.
+- Semantic search quality is good. Query "how to negotiate a higher salary
+  offer" correctly surfaced =Areas/Financial.org= (which has "Learn
+  negotiation strategies for senior roles") as the top hit, ahead of
+  lexically-closer but less relevant chunks. Query "things I want to do to
+  improve my sleep and reduce caffeine" correctly ranked =Areas/Health.org=
+  first (similarity 0.39) even though the wording doesn't overlap much with
+  "Reduce caffeine after 15:00 / Resume stretching routine" -- this is
+  exactly the case the ripgrep baseline misses.
+- Full-text (FTS5) search for "negotiation" worked as expected.
+- Server footprint after indexing + a few queries: ~180 MB RSS, sub-second
+  query latency (~0.1-0.7s).
+
+** Caveats
+
+- The Emacs-side package (=org-db-v3.el= + =org-db-v3-transient.el=)
+  requires =plz= and =transient=; this dev checkout's vendored
+  =transient= is version-skewed against the elpa =transient= package
+  (pre-existing issue, hit earlier in this session with
+  =claude-code-ide-transient=), so the Emacs-side indexing flow itself
+  wasn't exercised end-to-end here -- only the server/API, which is the
+  part that does the actual work.
+- Requires a long-running local server process (FastAPI/uvicorn) plus three
+  SQLite files under =~/org-db/= by default.
+- Image search (CLIP) and linked-file (PDF/DOCX) indexing weren't
+  exercised.
+
+* khoj (github.com/khoj-ai/khoj)
+
+** What it is
+
+A much larger "second brain" application: Django-based web app + API server,
+with its own web UI, scheduling, multi-source indexing (org/markdown/PDF/
+images), an Emacs client (=khoj.el=), and support for cloud or local
+(llama.cpp/whisper) models.
+
+** Why it wasn't installed hands-on
+
+The =khoj= PyPI package pulls in ~79 dependencies, including Django,
+=psycopg2-binary=/=pgvector= (Postgres support), =llama-cpp-python= (compiled
+from source), =openai-whisper=, and OCR (=rapidocr-onnxruntime=). Khoj's own
+docs say to expect a *minimum of 5 GB disk* for offline/local models, on top
+of the package install itself. The dev machine had ~11 GB free at the time of
+this spike (already at 99% disk usage from unrelated large caches), so a full
+install risked leaving very little headroom for everything else on the
+machine. Given the footprint difference was already obvious from the
+dependency list and docs, it didn't seem worth the risk for a spike whose
+purpose is comparison, not integration.
+
+** What's known from docs
+
+- Pip install supports an embedded-DB mode (=USE_EMBEDDED_DB=true=) that
+  avoids needing a separate Postgres+pgvector instance; Docker Compose is the
+  other supported path.
+- Has a real Emacs client (=khoj.el=) with search and "chat with notes" UX,
+  plus a web UI, scheduled "automations", and multi-model support (cloud
+  APIs or local llama.cpp/whisper).
+- Aimed at being a full personal-assistant product, not a search library --
+  much larger surface area (web server, auth, scheduling, multiple content
+  types) than what's needed here.
+
+* Recommendation
+
+For "search over org notes from Emacs/gptel", *org-db-v3* is the better fit:
+
+- Single-purpose (search + indexing), no web UI/auth/scheduling to run or
+  secure.
+- Lightweight at this notes-collection scale (low-100s MB RSS, single-digit
+  MB DB, sub-second queries).
+- Already has gptel tool integration, which lines up with the
+  =list_notes=/=read_note=/=search_notes= tools just added -- it could
+  plausibly *replace* =search_notes= with a semantic variant rather than
+  living alongside it.
+- Semantic search demonstrably finds notes that ripgrep can't (concept
+  matches, not just keyword matches), which is the main thing the in-house
+  baseline lacks.
+
+khoj would make sense if the goal were a broader "AI assistant over my notes"
+product with a web UI and chat history of its own -- but that's a much bigger
+adoption (Django app, its own DB, its own model config, its own Emacs client
+to learn) for a smaller marginal benefit here, since gptel already provides
+the chat/agent layer.
+
+** If/when integrating org-db-v3
+
+- Run the FastAPI server as a per-user background service (e.g. launchd
+  agent), pointed at the real notes directory.
+- Resolve the =transient= version skew so =org-db-v3.el= loads cleanly
+  alongside =claude-code-ide-transient=.
+- Either wire =org-db-v3-semantic-search= into the existing =C-c g= gptel
+  prefix, or register its search as an additional gptel tool (it already
+  supports this) so the LLM can call it directly -- likely superseding the
+  ripgrep-based =search_notes= tool, while =list_notes=/=read_note= stay as
+  they are.
+- Decide on chunk size / re-indexing trigger (e.g. on save, or periodic).
