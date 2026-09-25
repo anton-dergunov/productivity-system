@@ -102,8 +102,9 @@ and are being brought into the shape above.
 
 ### Files and windows — `files-and-windows/`
 
-- [`file-tree.md`](files-and-windows/file-tree.md) — *to rewrite* (covers the
-  width only so far). The treemacs side panel and the workarounds it needs.
+- [`file-tree.md`](files-and-windows/file-tree.md) — The treemacs side panel:
+  how it is bent into a navigator for notes, how its width holds, and the four
+  treemacs workarounds it depends on.
 - `windows.md` — *planned.* Which window a view opens in, and why side panels
   never count.
 - `opening-and-navigation.md` — *planned.* One dispatcher for opening files,
@@ -111,8 +112,9 @@ and are being brought into the shape above.
 
 ### AI — `ai/`
 
-- [`claude-code-panel.md`](ai/claude-code-panel.md) — *to rewrite* (a prompt
-  and two investigation logs). Claude Code in a side panel.
+- [`claude-code-panel.md`](ai/claude-code-panel.md) — Claude Code in a side
+  panel, working on the vault: selection, re-reading edited files, and keeping
+  its terminal drawn correctly.
 - [`agent-context.md`](ai/agent-context.md) — What an AI agent is told about
   the Org conventions, and how that stays in sync with `config.org`.
 - `in-emacs-llm.md` — *planned.* The gptel and semantic-search experiment, and

@@ -1,6 +1,13 @@
-# Flowing config.org conventions to the AI assistant
+# Agent context
 
-Internal design note. Not user documentation.
+What an AI assistant working in the vault is told about how the notes are
+organised, and how the facts that come from `config.org` stay in sync with it.
+
+**Status:** built (the generated file); the MCP tools are not built
+**Code:** `lisp/ps-ai-context.el`; settings block `** AI context sync
+(ps-ai-context.el)`; the hand-written example is
+`samples/realistic/AGENTS.md`. User docs: `docs/AI-integration.org` → "Telling
+it how to work with your notes".
 
 ## Problem
 
@@ -20,8 +27,8 @@ goals at once:
 3. **Low maintenance** — ideally no manual step a human must remember.
 
 The agent's domain-level prose (what "task" means, disambiguation defaults, boundaries)
-lives in a hand-written `AGENTS.md` and rarely changes; that part is settled. This note
-is only about the *enumerable, drift-prone facts* above.
+lives in a hand-written `AGENTS.md` and rarely changes; its rules are at the end of this
+note. The options below are about the *enumerable, drift-prone facts* above.
 
 ## The design space
 
@@ -40,7 +47,7 @@ Three independent axes:
 An Emacs function reads the *live* values and writes them into a delimited region of
 `AGENTS.md` (`<!-- BEGIN ps-generated --> … <!-- END -->`).
 
-- Refresh on **Emacs startup**, on `ps/reload-config` (F10), and on tangle.
+- Refresh whenever the live values may have changed.
 - **Write only when the rendered block actually differs** from what is already on disk,
   so `AGENTS.md`'s mtime is untouched when nothing changed (matters for file-sync tools
   like git auto-sync / Obsidian sync).
@@ -60,7 +67,7 @@ the agent hand-edits text and can still err — but now fully informed.
 
 **Pros:** truly single source if it reads `config.org` directly; no codegen.
 
-**Cons:** **per-session token cost** every session; `config.org` is ~1800 lines of noisy
+**Cons:** **per-session token cost** every session; `config.org` is about 3,000 lines of noisy
 elisp; the agent may forget to read it. A "slimmed extract" file still has to be
 generated — which collapses into Option 1, only read on demand instead of auto-loaded.
 Dominated by Option 1.
@@ -122,22 +129,7 @@ Org API (`org-todo`, `org-set-property`, `org-capture`, and `org-ql` for queries
 second MCP server is required. Standalone "org MCP" servers exist in the ecosystem but
 would duplicate a server process and lose this config's awareness of the live settings.
 
-## Sketch of the recommended first step (Option 1)
-
-- A new module, e.g. `lisp/ps-ai-context.el`, with:
-  - a **pure** `ps/ai-context--render-conventions` that takes the relevant values
-    (keyword set, priorities, planning subdir, date format) and returns the markdown
-    block — ERT-testable in isolation;
-  - `ps/ai-context-sync` that reads the live values, renders the block, and **rewrites
-    `<base>/AGENTS.md` only if the delimited region's content changed**.
-- Triggers: call it from Emacs startup (after `config.org` loads), from
-  `ps/reload-config` (F10), and from the tangle path.
-- `config.org` keeps a small settings block per the project's `defcustom`-defaults
-  convention if any knobs are exposed.
-
-This is a follow-up implementation task; the decision recorded here is the input to it.
-
-## What was actually built (2026-08-01)
+## What was built
 
 Option 1, with one change of shape: the generated text is **its own file**, not a delimited
 region inside `AGENTS.md`. `ps/ai-context-sync` writes
@@ -164,4 +156,42 @@ argument as the conventions — it is an enumerable, drift-prone fact that alrea
 source of truth (the files themselves), and it was previously hand-maintained inside
 `AGENTS.md` under a comment claiming it was generated.
 
-Option 3 (MCP semantic tools) remains the sensible next layer and is untouched by this.
+The scope has since grown again: the file also carries the context tags and situations
+declared in the vault's `workspace.org` (see [situations.md](../planning/situations.md)),
+and the keyword the assistant should use for "next".
+
+**When it is written.** From two places only:
+
+- Once at the very end of `config.org`, after every value it reads has been set. That
+  single call covers both a fresh start and `ps/reload-config` (`C-c p R`), which re-runs
+  the whole file.
+- A debounced rescan after any scanned `.org` file is saved
+  (`ps/ai-context-setup-hooks`), which keeps the file index current.
+
+Saving `config.org` deliberately does *not* trigger it: that only re-tangles to
+`config.el` without re-running anything, so the live values have not changed yet and
+the file would be regenerated from stale state.
+
+## The hand-written AGENTS.md
+
+`CLAUDE.md` in the vault is a one-line `@AGENTS.md` import, so the same instructions
+serve any agent that reads `AGENTS.md`. The rules it carries, each there because an
+agent got it wrong without it:
+
+- **"Task" means an Org heading with a TODO keyword** in these files, never the
+  agent's own todo list. The same goes for "project", "plan", "inbox" and "list".
+- **Discover the structure; don't invent file names.** The file is written to fit
+  any vault, so it names no files and assumes no methodology; the generated file
+  supplies the facts.
+- **Ignore instructions from a code repository above the notes.** If the vault sits
+  inside a repository, that repository's instructions are about the software.
+- **Don't verify a notes edit** by launching Emacs, running scripts or running tests.
+  The user is watching the diffs in Emacs.
+- **When in doubt, the subject is the notes**, but configuration questions,
+  documentation and other sources are fine when asked for.
+
+## Not built yet
+
+- **MCP semantic tools** (Option 3): the sensible next layer, if hand-editing proves
+  error-prone or once the assistant should *trigger* actions (capture, refile, archive,
+  schedule) rather than edit text.

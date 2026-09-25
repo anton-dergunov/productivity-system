@@ -1,174 +1,158 @@
-# File View width behaviour
+# File tree
 
-Internal design note. Not user documentation. Modules: `lisp/ps-file-tree.el` →
-`;;; Window width`, wired from `config.org` → `** =treemacs= file tree`.
+The vault's folders and files in a side panel on the left, built on treemacs
+and bent from a view of code projects into a calm navigator for Org notes.
 
-**Status: solved.** See "The solution" at the end. The failed attempts are kept
-because they map out the dead ends, and because attempt 4 was the right idea
-executed wrongly.
+**Status:** built
+**Code:** `lisp/ps-file-tree.el` and `lisp/ps-file-tree-icons.el`; wired in
+`config.org` → `** =treemacs= file tree`; settings block `** File Tree
+(ps-file-tree.el / ps-file-tree-icons.el)`. User docs:
+`docs/Files-and-navigation.org`.
 
-## Goal
+## Problem
 
-The File View (treemacs left-side window) should keep its width fixed when the
-Emacs **frame** is resized (dragging the OS window border), while still allowing
-the user to manually resize it by dragging the vertical divider.
+treemacs is built for code projects: a root line per project, git-status
+colours, a follow mode that expands and re-roots the tree to reveal the current
+file, and file names shown exactly as they are on disk. Here the tree is the
+main way to move around a vault of plan files, so it should read like the
+folder list in Obsidian: sections, clean names, and nothing moving unless the
+user moves it.
 
-Manual resizing works fine (`treemacs-width-is-initially-locked nil`). The
-problem is that frame resize proportionally redistributes horizontal space to all
-windows, including treemacs.
+## Decisions
 
-## What we established about the environment
+**One project for the whole vault** (`ps/file-tree-root-mode` `single`), with its
+root line hidden (`ps/file-tree-hide-root`), so the tree starts at the vault's
+own entries and files at the top level are visible. The alternative, `subdirs`,
+makes each top-level folder its own project with a bold label, but then files
+directly in the vault appear nowhere. treemacs forbids overlapping projects, so
+the two cannot be combined.
 
-- Treemacs creates its buffer as a proper **left side window**
-  (`(window-parameter w 'window-side)` → `'left`).
-- `treemacs-width-is-initially-locked = nil` causes treemacs to register a
-  `window-configuration-change-hook` handler that **explicitly sets
-  `window-size-fixed = nil`** in the treemacs buffer on every window
-  configuration change (including frame resizes).
-- `mouse-drag-vertical-line` calls `mouse-drag-line` internally, which on a
-  left side window raises `user-error: No resizable window on the left of this
-  one` if `window-size-fixed = 'width` is set in the buffer.  The `IGNORE`
-  argument that would bypass this is **not** passed by `mouse-drag-line` for
-  the resize check itself (only the minimum-size check is bypassable via
-  `IGNORE`).
+**Top-level folders are the section headers**: bold
+(`ps/file-tree-bold-top-level`), with a thin strip above each
+(`ps/file-tree-top-level-spacing`). The strip is an overlay `before-string`,
+not a `line-spacing` property on the line above: `line-spacing` adds its space
+*below* that line, so the previous entry's highlight would extend into it. The
+overlay's priority is -100 so treemacs's fringe marker, which sits at the same
+position, stays on the line rather than floating on the strip.
 
-## Approaches tried and why each failed
+**Names read like titles**: `.org` is dropped and `_` shown as a space
+(`treemacs-file-name-transformer`). The same function names files in the mode
+line and the frame title, so `Deep_Learning.org` reads "Deep Learning"
+everywhere.
 
-### 1. `window-size-change-functions` — detect and restore
+**What the tree hides is a display choice**, separate from what the agenda
+scans. `ps/file-tree-ignored-files` hides the configuration files next to the
+notes, dotfiles and build output; the agenda's exclusions are in
+`ps-org-files`.
 
-Detect frame resize by comparing `frame-pixel-width` against a saved value.
-When it changes, call `(window-resize tw delta t)` to push treemacs back to
-the saved column count.
+**File sets** (`ps/file-tree-file-sets`) are named include and exclude filters
+over paths, switched from the tree's mode line. By default a set only filters
+the tree. With `ps/file-tree-set-applies-to-agenda` (shown as 📅) it also
+restricts the agenda, Conflicts and Availability. The current set and that
+flag persist across restarts.
 
-**First implementation bug:** used `(treemacs-get-local-window)` which queries
-`selected-frame`, not the frame argument passed to `window-size-change-functions`.
-When the hook fires for a non-selected frame, the function returned nil and no
-restore happened.
+**Order is alphabetical unless stated** (`ps/file-tree-order`): names before
+`:rest` are pinned to the top, names after it to the bottom. treemacs always
+draws folders before files, which no ordering can change.
 
-**Fixed implementation** (`get-buffer-window buf frame`) + a `resize-pending`
-flag to prevent the follow-up hook invocation (triggered by our own
-`window-resize` call) from being misread as a user drag.
+**No git colours.** `treemacs-git-mode` is off: a modified file would otherwise
+take the git face and lose its category styling.
 
-**Why it still failed:** `window-resize` **silently errors on side windows**.
-It raises an error for horizontal resize of a left side window, which
-`ignore-errors` swallowed. The treemacs window was never restored.
+**Follow only moves the highlight.** `ps/file-tree--follow` highlights the
+current file if it is already on screen, and never expands a folder or
+re-roots the tree, so the tree never shifts under you. treemacs's own follow
+modes are off.
 
-### 2. `window-size-fixed = 'width` in `treemacs-mode-hook`
+**One click opens a file** in the most recently used content window, never a
+side or dedicated one (`ps/file-tree--target-window`). Excluding every side and
+dedicated window, not just the tree, is what stopped windows multiplying when a
+file landed in a dedicated window and Emacs split off another. The general
+click model is in [opening-and-navigation.md](opening-and-navigation.md).
 
-Setting the buffer-local `window-size-fixed` to `'width` makes
-`resize_frame_windows` (C-level) skip the window entirely when distributing
-horizontal space. This **did work** for frame resize — confirmed by the user.
+**External changes arrive three ways.** `treemacs-filewatch-mode` watches every
+expanded folder, but only for files appearing and disappearing: plain content
+changes are dropped while git mode is off, and a folder never expanded is not
+watched at all. Git sync refreshes the tree after a pull that brought something
+in. The header line's refresh button covers the rest.
 
-**Problem:** `mouse-drag-vertical-line` → `mouse-drag-line` raises
-`user-error: No resizable window on the left of this one` when
-`window-size-fixed = 'width` is set. Manual resize was completely broken.
+**The width holds when the frame is resized, and the divider still drags.**
+`ps/file-tree-width-setup` calls `window-preserve-size` on the tree window from
+`window-size-change-functions` (`ps/file-tree-pin-width`):
 
-### 3. `window-size-fixed = 'width` + advice on `mouse-drag-vertical-line`
+- A preserved width makes `window-size-fixed-p` true for the C-level frame
+  resize, so the columns go to the other windows.
+- A divider drag goes through `adjust-window-trailing-edge`, which, when it
+  finds nothing to resize, retries ignoring *preserved* sizes. So the drag
+  works. `window-size-fixed` has no such escape.
+- The record is a width, and lapses once the width changes, so the hook
+  records the dragged width as the new one. `treemacs-width` is updated with
+  it, and hiding and showing the tree keeps the user's width.
+- Shrinking the frame past the tree's width clamps the frame at its minimum
+  instead of shrinking the tree, so no restore logic is needed.
 
-Added `ps/treemacs--allow-resize` (`:around` advice) to temporarily clear
-`window-size-fixed` in the treemacs buffer for the duration of the drag.
+## Workarounds for treemacs
 
-**Problem:** treemacs's own `window-configuration-change-hook` (installed by
-treemacs when `treemacs-width-is-initially-locked = nil`) fires on every window
-configuration change and sets `window-size-fixed = nil`. This fired during/after
-frame resize, clearing our setting before the next resize was protected.
+Each is load-bearing, and each exists because of a specific treemacs behaviour.
+They are also listed in
+[upstream-workarounds.md](../platform/upstream-workarounds.md).
 
-The advice correctly cleared and restored the flag for manual drags (confirmed
-via traces: `fixed=nil` at the point `mouse-drag-line` ran). But manual drag
-still raised the same error — `mouse-drag-line` itself (not just `window-resize`)
-checks side-window constraints independently.
+1. **Decorations are re-applied after every render.** treemacs cannot draw a
+   project without its root line, and fires no hook when a node is expanded or
+   collapsed. `ps/file-tree--decorate` is one idempotent pass (hidden root, the
+   leftover indentation, gaps, bold headers), run from
+   `treemacs-post-buffer-init-hook`, `treemacs-post-refresh-hook`, a
+   buffer-local `post-command-hook`, the tree's own expand and collapse
+   commands, and after each batch of file-watch events, which refresh through
+   a path that fires no hook. It changes no characters, so it does not bump the
+   buffer's modification tick and cannot trigger itself.
+2. **Follow never uses `treemacs-find-visible-node`.** Despite its name, that
+   function falls back to `treemacs-find-node`, which expands ancestors,
+   whenever a node's position is not cached, which is the usual case for a
+   file. `ps/file-tree--visible-node-position` looks the path up in treemacs's
+   node table, which holds only nodes currently drawn, and scans buttons for
+   the position, so it doubles as a "is it on screen" test and never expands
+   anything.
+3. **Nodes are found by path, not by their label.** Because of the name
+   transformer, a file's line no longer contains its file name.
+   `treemacs-find-file-node` falls back to a `search-forward` per path
+   component when a node's position is not cached, fails, and returns nil,
+   which its callers do not check. Deleting a shown file from another app then
+   hit `(goto-char nil)` inside treemacs's file-watch handler, killing its timer
+   and leaving the deleted file on screen. `ps/file-tree-node-lookup-setup`
+   advises it (`:before-until`) to match on the `:path` property instead. The
+   advice answers only for nodes drawn right now; for anything else treemacs's
+   own lookup still runs, since its job there is to expand ancestors.
+4. **Deferred annotations skip nodes that were redrawn.** Expanding a folder
+   arms a half-second timer holding the node's buffer position, and nothing
+   checks that the node survived. Any re-render inside that half second (a
+   refresh, or a vault switch, which re-renders several times) makes it signal
+   `(wrong-type-argument number-or-marker-p nil)` once per expanded node.
+   `ps/file-tree-annotations-setup` adds a `:before-while` guard that skips a
+   position no longer carrying a node. Skipping costs nothing: the annotations
+   are git status, which is off.
 
-### 4. `preserve-size` window parameter
+## Constraints and traps
 
-Set `(window-parameter w 'preserve-size '(t . nil))` via
-`window-configuration-change-hook`. The `preserve-size` parameter is documented
-to cause `resize_frame_windows` to skip the window.
+- **Inside `window-size-change-functions`, find the tree per frame**
+  (`ps/file-tree--frame-window`). `treemacs-get-local-window` consults the
+  selected frame, and the hook can report a different one.
+- **Keep the node-lookup advice narrow.** Answering for nodes that are not drawn
+  would break treemacs's expand-to-reveal.
+- **There is no `preserve-size` window parameter.** The real parameter is
+  `window-preserved-size`, holding a recorded pixel size; call the function
+  `window-preserve-size` rather than setting parameters by hand.
 
-**Confirmed set** (`(window-parameter w 'preserve-size)` → `(t)` = `(t . nil)`).
-**Did not work** — frame resize still changed the treemacs width.
+## Rejected
 
-**Why (established later):** there is no `preserve-size` window parameter. The
-real one is `window-preserved-size`, and its value is not a cons of flags but
-`(BUFFER PIXEL-WIDTH PIXEL-HEIGHT)` — a *recorded pixel size*, checked against
-the window's current size and buffer by `window-preserved-size` /
-`window--preserve-size`. Setting a made-up parameter name was a no-op, so the
-conclusion drawn about the NS backend was wrong. It was the right mechanism,
-reached through the wrong door: `window-preserve-size` is the function to call.
-
-### 5. `window-size-fixed = 'width` re-applied at hook depth 90
-
-Re-applied `window-size-fixed = 'width` via `window-configuration-change-hook`
-at depth 90 (treemacs's own handler runs at the default depth 0, so ours fires
-after it and wins the ordering race). Combined with `ps/treemacs--allow-resize`
-advice.
-
-**Frame resize:** worked — `window-size-fixed = 'width` was in place when
-`resize_frame_windows` ran, so treemacs was skipped.
-
-**Manual resize:** still broken — `mouse-drag-line` raised `user-error: No
-resizable window on the left of this one` 100× even with the advice temporarily
-clearing `window-size-fixed`. The error originates inside `mouse-drag-line`'s
-own side-window constraint check, which is separate from the `window-size-fixed`
-check and cannot be bypassed from outside the function.
-
-**Correction:** there is no side-window constraint check in `mouse-drag-line`.
-It just calls `(adjust-window-trailing-edge window growth t t)`, and that
-`user-error` is raised in `adjust-window-trailing-edge` (window.el), from the
-loop that walks left looking for a resizable window. With
-`window-size-fixed = 'width` the treemacs window itself is not resizable and
-there is nothing further left, so the loop runs out. The advice failed because
-the drag also has to survive *later* motion events, each re-entering
-`adjust-window-trailing-edge` — and, more fundamentally, because
-`adjust-window-trailing-edge`'s retry pass ignores `preserved` sizes only,
-never `window-size-fixed`.
-
-## The solution
-
-`window-preserve-size` on the treemacs window, re-applied from
-`window-size-change-functions`. Implemented as `ps/file-tree-pin-width` /
-`ps/file-tree-width-setup` in `lisp/ps-file-tree.el`.
-
-Why this satisfies both halves of the goal, in Emacs 30.2 (window.el):
-
-- **Frame resize leaves it alone.** A preserved width makes
-  `window-size-fixed-p` return non-nil with `IGNORE = nil`, and the C-level
-  frame-resize path honours that: the columns go to the other windows.
-- **Dragging still works.** `adjust-window-trailing-edge`, when its first pass
-  finds no resizable window, retries with `ignore = 'preserved`
-  (window.el:3526-3547). `window--size-fixed-1` consults
-  `window--preserve-size` only when `ignore` is not `'preserved`
-  (window.el:1778-1779), so the retry sees the window as resizable. That retry
-  is what `window-size-fixed` can never benefit from — the buffer-local
-  variable is checked unconditionally, with no `IGNORE` escape at all. Hence
-  preserved = immovable by the frame, movable by the mouse; fixed = immovable
-  by both.
-- **Each drag re-pins.** `window-preserve-size` records the width *as it is
-  now*; `window--preserve-size` compares that record against the live width, so
-  the pin lapses the moment a drag changes it. The hook re-records on the next
-  redisplay, making the dragged width the new pinned one.
-
-Also verified in a live GUI Emacs (`set-frame-width` drives the same
-`adjust_frame_size` → `resize_frame_windows` path as an OS window drag):
-
-- Frame 100 → 160 → 70 → 120 cols: tree stayed at 22 columns throughout.
-- Drag, then resize the frame both ways: the new width held.
-- Shrinking the frame far enough that the tree would have to give: Emacs clamps
-  the *frame* at its minimum width instead (92 → 35 cols requested, 35 given)
-  rather than shrinking a preserved window. So there is no drift to repair, and
-  no restore logic is needed.
-- Splits, `delete-other-windows`, `balance-windows`, `treemacs-set-width`,
-  hide/show: all leave the tree pinned; the explicit width commands re-pin at
-  their new width (`enlarge-window`/`shrink-window` drop the preserved size by
-  design, and the hook records the result).
-
-`treemacs-width` is updated to `window-total-width` on each re-pin, which is
-the unit treemacs's own `display-buffer` call uses, so hiding and re-showing
-the tree round-trips the user's width exactly.
-
-## What not to do
-
-- Don't reach for `window-size-fixed` (that is what
-  `treemacs-width-is-initially-locked` / `treemacs-toggle-fixed-width` set) —
-  it kills dragging, per above.
-- Don't try to detect a frame resize and resize the tree back: `window-resize`
-  errors on side windows, which is what sank attempt 1.
+- **`window-size-fixed`**, which is what `treemacs-width-is-initially-locked`
+  and `treemacs-toggle-fixed-width` set. It holds the width through frame
+  resizes but kills dragging: the drag's search for a resizable window finds
+  none and signals "No resizable window on the left of this one". Clearing it
+  around a drag does not help, since every later motion event re-enters the
+  same check, and treemacs's own configuration-change hook resets it.
+- **Detecting a frame resize and resizing the tree back.** `window-resize`
+  signals on a side window, and the error was being swallowed.
+- **treemacs's follow modes** (above).
+- **Neotree**, which the tree replaced in 2026. The commit records what the
+  switch brought (per-category icons, hidden configuration files, a tree rooted
+  at the vault) rather than what Neotree lacked.
