@@ -68,15 +68,13 @@ and are being brought into the shape above.
 
 ### Planning — `planning/`
 
-- [`agenda-views.md`](planning/agenda-views.md) — *to rewrite* (merging
-  `agenda-calendar-view.md` into it). What each planning view is for, and the
-  week/month options that were considered.
-- [`agenda-calendar-view.md`](planning/agenda-calendar-view.md) — to be merged
-  into `agenda-views.md`.
-- [`agenda-layout.md`](planning/agenda-layout.md) — *to rewrite* (a pre-build
-  plan). The aligned-column agenda line and its badges.
-- [`schedule-view.md`](planning/schedule-view.md) — *to rewrite* (an iteration
-  log). The Timeline and Events views of the day.
+- [`agenda-views.md`](planning/agenda-views.md) — What each planning view is
+  for, how the views are wired into `org-agenda`, and the week and month
+  options that were considered.
+- [`agenda-layout.md`](planning/agenda-layout.md) — How each agenda line is
+  rebuilt into aligned columns with badges.
+- [`schedule-view.md`](planning/schedule-view.md) — The Schedule section drawn
+  as a timeline or a list of events instead of Org's time grid.
 - `situations.md` — *planned.* Context tags and the saved searches built on
   them.
 - [`capture-chat.md`](planning/capture-chat.md) — *to rewrite* (a prompt). To

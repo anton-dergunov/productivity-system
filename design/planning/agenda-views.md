@@ -1,136 +1,163 @@
-# Research: Task-visualization options in Org mode (beyond the current Day-agenda)
+# Agenda views
 
-This is a research summary, not an implementation plan — no code changes are
-proposed here. It answers: (1) why the default agenda dispatcher looks messy,
-(2) what Org-mode/Emacs offers for week/month-style views, and (3) how a
-week/month view would fit the existing architecture, plus a look at `calfw` as a
-different-paradigm alternative. The concrete build that came out of this research
-lives in `agenda-calendar-view.md` (same folder).
+What each planning view is for, how the views are wired into `org-agenda`, and
+the week and month options that were considered.
 
-## Context
+**Status:** built
+**Code:** `config.org` → `*** Super agenda` (the custom commands and
+`ps/agenda-day-super-groups`), `ps/show-agenda`, `ps/show-calendar`,
+`ps/show-tasks`, `ps/calendar-follow-timestamp`; `lisp/ps-agenda-layout.el`
+(view kinds, span controls); `lisp/ps-schedule-view.el` (auto-refresh). User
+docs: `docs/Agenda.org`, `docs/Calendar.org`, `docs/Tasks-view.org`.
 
-Three views are wired up today:
-1. **Day-agenda** (`C-c p a` → `ps/show-agenda` → custom command `c`) — the daily
-   driver: a time-grid/timeline of today's timed events, untimed "scheduled
-   today/due/overdue" sections, plus cross-cutting **High-priority** (`[#A]`) and
-   **In progress** (`INPR`) sections. Heavily styled by `lisp/ps-agenda-layout.el`,
-   `ps-agenda-icons.el`, `ps-agenda-emoji.el`, `ps-schedule-view.el`,
-   `ps-agenda-fold.el`.
-2. **List of all tasks** — Org's stock dispatcher views (`t`/`m`/`s` etc. from
-   `C-c a`), used rarely.
-3. **File view** — browsing `Areas/*.org` directly via the treemacs file tree,
-   organized by topic/category.
+## Problem
 
-The question: what's missing for "week or month" visibility of both timed and
-date-only tasks, and why the plain `Day-agenda (W25):` dispatcher view looks
-inconsistent with the polished custom view.
+Org's agenda is one machine that can answer several different questions, and
+out of the box it answers them all in one mixed view. Two concrete gaps started
+this work:
 
-## Why the stock dispatcher view looks messy
+- There was no week or month view.
+- Org's stock view (`C-c a a`) looked half-styled. The section grouping was
+  bound only inside the custom Agenda command, but the styling modules run on
+  `org-agenda-finalize-hook` for every agenda buffer. The stock view got icons
+  and badges on top of Org's raw, ungrouped list.
 
-`C-c a` is bound to plain `org-agenda` (config.org:622), Org's generic
-dispatcher. Pressing `a` there runs Org's **stock** day/week agenda — not the
-custom command `c`. The two diverge structurally:
+## The views
 
-- `org-super-agenda-groups` (the Schedule/Scheduled-today/Due/Overdue/
-  High-priority/In-progress sections) is **let-bound only inside the `c` command's
-  parameters** (config.org:664-699). The stock dispatcher never sets it, so you
-  get Org's raw, ungrouped list with its default header text — literally
-  `Day-agenda (W<n>):` is Org's built-in header string for a one-day span.
-- Several styling modules are attached globally via `org-agenda-finalize-hook`
-  (`ps/agenda-layout-setup`, `ps/agenda-emoji-setup`, `ps/agenda-icons-apply`,
-  `ps/agenda-fold-setup`, plus `org-modern-agenda`,
-  `ps/conflicts--agenda-schedule-check`, `ps/agenda--single-blank-lines` — see
-  config.org:711-733). These run on **any** agenda buffer, including the stock
-  one.
+Each view answers one question.
 
-So the stock view gets partial polish (icons, pills, emoji) layered onto Org's
-raw structure (no sections, no custom timeline, default time-grid dashes) — a
-visible mismatch between "styled" and "unstyled" parts in the same buffer. Not a
-bug in the modules; only command `c` carries the full configuration.
+| View | How to open | Question | Shape |
+|---|---|---|---|
+| Agenda | `C-c p a`; dispatcher `c` | What should I focus on now? | Today's dated sections, then High-priority, In progress and Next up |
+| Calendar | `C-c p c`; dispatcher `g` | What is on which date? | A flat list; day, week, month, year or any range |
+| Tasks | `F9` | What is open at all? | Every open task, with Org's keyword selector |
+| Situations | `C-c p S` | What can I do in this situation? | See [situations.md](situations.md) |
 
-## What Org mode / the Emacs ecosystem offer for week/month visibility
+Availability and Conflicts are computed buffers rather than agenda views; they
+are not covered here.
 
-**Built into `org-agenda` itself:**
-- `org-agenda-span` accepts `day`, `week`, `month`, `year`, or an integer N — the
-  core lever. A custom command can let-bind its own span independent of the global
-  `org-agenda-span 1`, exactly like `c` already let-binds its own grouping.
-- For `week`/`month`/N>1 spans, Org **automatically** inserts a header line per
-  day and lists that day's timed entries (with time) and date-only
-  scheduled/deadline entries (no time) underneath — "both timed and untimed per
-  day" is native once span > 1.
-- `org-agenda-show-all-dates t` forces empty days to still show a header.
-- `org-agenda-start-on-weekday` controls whether a week block starts Monday or
-  follows the current day.
-- `org-agenda-custom-commands` can hold **multiple named entries**; each can carry
-  its own span, grouping, and header.
+## Decisions
 
-**`org-super-agenda` nuance for multi-day spans — resolved:** the section
-selectors used today (`:time-grid`, `:scheduled today`, `:deadline past`, etc.)
-are evaluated per-entry across the whole span, not per-day, so reusing the current
-group list verbatim against a week span would mix days together. However,
-`org-super-agenda` ships exactly the selector for this: **`:auto-planning`**
-groups items "by their earliest of scheduled date or deadline" and **`:auto-ts`**
-groups by "the date of their latest timestamp anywhere in the entry" — both format
-the bucket label via `org-super-agenda-date-format` and both work directly inside
-`org-agenda-custom-commands`, no extra package needed. A week/month custom command
-can set `org-agenda-span 'week` and `org-super-agenda-groups '((:auto-planning t))`
-to get genuine per-day buckets, still benefiting from `ps-agenda-layout.el` since
-the buffer is a normal agenda buffer.
+**The Agenda is not purely about dates.** Its pull sections (High-priority,
+In progress, Next up) stay the same when you look at tomorrow. That is what
+separates it from the Calendar. The name "Agenda" was kept over "Focus"
+because it reads naturally ("what's on my agenda") and needed no renaming.
 
-(Other `:auto-*` selectors: `:auto-category`, `:auto-group`, `:auto-tags`,
-`:auto-todo`, `:auto-priority`, `:auto-parent`, `:auto-outline-path`,
-`:auto-property`, `:auto-map`, `:auto-dir-name` — none date-related.)
+**The pull sections never repeat a task.** Their queries exclude each other,
+with the precedence INPR > priority A > NEXT (hence the `/-INPR` and
+`-PRIORITY="A"` restrictions). A task can still appear both in a dated section
+and in a pull section; the two answer different questions. Note that
+`-PRIORITY="A"` also matches tasks with no priority cookie, because Org gives
+those the default priority.
 
-**Other native dispatcher views** (via `C-c a`): `#` stuck projects, `m`/`M`
-tags/property match, `s`/`S` text search — the "filter by field" tools. Column
-view (`org-columns`, `C-c C-x C-c`) is a spreadsheet-like rollup of properties
-across a subtree — file/project-oriented, complements the File view.
+**The day grouping is the global default.** `org-super-agenda-groups` is set
+globally to `ps/agenda-day-super-groups`, not only inside the Agenda command.
+Anything that calls `org-agenda-list` without its own grouping, such as the
+stock `C-c a a`, then renders through the same pipeline. Views that want a flat
+list bind the groups to nil locally: Tasks, the Calendar, and the Agenda's own
+pull sections.
 
-**Query-based blocks (`org-ql` / `org-ql-block`):** a separate package where a
-block is defined by a Lisp/SQL-like query (e.g. "scheduled or deadlined in the
-next 7 days, regardless of which day"), independent of Org's native per-day
-blocking. Useful for a rolling-window "next 7 days" framing rather than a
-calendar-aligned week, at the cost of a dependency. Reuses the same
-`org-super-agenda-groups` DSL via `:super-groups`, so it's a query layer, not a
-competing grouping mechanism. ~5x faster than native blocks for aggregate queries
-in one benchmark; ships ready-made "this week"/"next week" saved views.
+**Group order is match order.** org-super-agenda gives an item to the first
+group that matches; `:order` only sorts where the sections are displayed.
+`:scheduled today` matches timed tasks as well as untimed ones, so "Schedule"
+(`:time-grid t`) must come before "Scheduled today", or timed tasks would leave
+the timeline.
 
-## `calfw` / `calfw-org` as an alternative
+**The Calendar is a flat list for every span.** It has no sections and no time
+grid, and its day view does not reuse the Schedule timeline. The timeline, the
+now line and the minute refresh belong to the Agenda, the view about today. An
+earlier build reused the Schedule timeline for the Calendar's day and grouped
+longer spans into per-day buckets with org-super-agenda's `:auto-planning`; it
+was replaced by the flat list. Longer spans now use Org's own per-day headers,
+which the layout module turns into collapsible day sections under a span
+header with **D W M Y** and **Range…** controls.
 
-`calfw` (with the `calfw-org` bridge) renders an actual calendar **grid**: month,
-1-week, 2-week, and day views, as a literal grid of day cells — closer to
-Outlook/Google Calendar visually. `calfw-org-create-source` pulls events from Org
-files.
+**The Calendar shows each item on its own date only.** `org-scheduled-past-days`,
+`org-deadline-past-days` and `org-deadline-warning-days` are 0 inside it:
+nothing is carried forward, warned about in advance, or shown as overdue.
+Overdue work belongs in the Agenda.
 
-Status (verified June 2026): **actively maintained** — a new maintainer (Al
-Haji-Ali) shipped a **version 2.0** rewrite, last updated 2025-11-03, requiring
-Emacs ≥28.1 and Org ≥9.7. A live, current option, not legacy-only.
+**The Calendar skips work it never shows.** `org-agenda-entry-types` is limited
+to deadlines, scheduled dates and timestamps, and `org-agenda-dim-blocked-tasks`
+is off. That roughly halves the scan a year view needs. Weeks start on
+`calendar-week-start-day`, `ps/show-calendar` aligns a week, month or year to
+its boundary, and empty days are skipped (`org-agenda-show-all-dates` nil).
 
-Trade-offs versus extending the current architecture:
-- **Different visual paradigm** — good for spotting density/gaps across a month,
-  genuinely a grid-of-cells look a scrolling agenda can't give.
-- **Separate buffer/major-mode** with its own rendering pipeline. None of the
-  existing polish (`ps-agenda-layout`'s aligned columns, category icons, emoji,
-  fold state, org-modern pills) carries over.
-- Time-of-day display per grid cell isn't clearly documented as a strength —
-  cells are date-level, so it likely shows "this day has N events" rather than an
-  intraday timeline. Explicitly no click-and-drag date-range selection.
-- A genuine new dependency rather than reusing `org-agenda-custom-commands` (this
-  repo's established pattern).
-- Doesn't replace day-level detail well — typically still paired with a regular
-  agenda for "what exactly happens today."
+**Clicking a date in an Org file opens the Calendar** at that date, and a date
+range opens that many days. `ps/calendar-follow-timestamp` overrides
+`org-follow-timestamp-link`, which would otherwise open Org's stock agenda.
 
-**Practical read:** credible for a literal month grid specifically, but a parallel
-system — none of the existing styling transfers. Extending
-`org-agenda-custom-commands` with `:auto-planning` keeps week/month consistent
-with the Day-agenda, no new dependency. Reserve `calfw` only if month view
-specifically feels better as a true grid than a scroll of day-blocks.
+**Each view tags its buffer with a view kind.** The custom commands let-bind
+`ps/agenda-layout-view-kind` (`agenda`, `calendar` or `situation`), and the
+layout copies it into the buffer-local `ps/agenda-layout--view-kind` so it
+survives a re-layout after a resize. The view kind decides three things:
+
+- Only the Calendar draws span controls.
+- Only a Situation view draws the plate naming its query.
+- Only the Agenda is rebuilt by the minute refresh. Rebuilding the Calendar
+  made it jump back to today and made month and year views sluggish.
+
+**The dispatcher keys are `c` and `g`.** `a` in Org's dispatcher is its
+built-in agenda and cannot be taken over by a custom command.
+
+**Views take over the selected window.** `org-agenda-window-setup` is
+`current-window`, so opening a view leaves the other windows alone. Around
+that:
+
+- `ps/window--split-if-alone-advice` on `org-agenda` and `org-todo-list` splits
+  first when the selected window is the only content window.
+- `ps/window--inhibit-split-advice` on `org-agenda-redo` makes a refresh rebuild
+  in place instead of splitting again.
+- The dispatcher (` *Agenda Commands*`) appears as a bottom strip through
+  `display-buffer-alist`, with `delete-other-windows` suppressed while it is up
+  (`ps/agenda-dispatcher-keep-frame`), so choosing a view does not collapse the
+  frame.
+
+Org's default, `reorganize-frame`, bypasses `display-buffer-alist` with its own
+logic, which is why the agenda sometimes split and sometimes replaced a window.
+The general window rules are in [windows.md](../files-and-windows/windows.md).
+
+## Rejected
+
+- **calfw / calfw-org** as the week and month view. It is maintained (a 2.0
+  rewrite in 2025) and draws a real calendar grid, but it is a separate
+  rendering pipeline: none of the agenda styling carries over. Its cells are
+  date-level, with no timeline within a day, and it is a new dependency. Worth
+  revisiting only if a literal month grid is ever wanted.
+- **org-ql blocks** for the date views. They suit a rolling "next 7 days"
+  rather than a calendar week, and add a dependency. They reuse the
+  org-super-agenda group syntax (`:super-groups`), so they remain an option for
+  query-based task lists.
+- **Reusing the day groups for longer spans.** org-super-agenda selectors such
+  as `:scheduled today` are evaluated per entry across the whole span, not per
+  day, so a week grouped this way mixes its days together.
+- **One command per span.** The Calendar is one command whose span is switched
+  in place (`org-agenda-day-view` and friends, or `ps/agenda-layout-span-range`).
+
+## Constraints and traps
+
+- `org-agenda-redo` calls `recenter`, so a refresh needs the agenda's window to
+  be selected. The minute refresh therefore does nothing when the agenda has no
+  live window.
+- Situation commands are appended to `org-agenda-custom-commands` after this
+  block's `setq`, or the `setq` silently replaces them; see
+  [situations.md](situations.md).
+- Tasks binds `org-super-agenda-groups` to nil. Otherwise the global day
+  grouping lumps every undated task under "Other items".
+
+## Not built yet
+
+- A **Projects** view: a heading with no TODO keyword that has at least one
+  task below it. That matches how the files are already written; Org's
+  stuck-projects view uses a different convention.
+- A **Waiting** view for `WAIT` tasks.
+- Effort and capacity planning.
 
 ## Sources
 
-- [org-super-agenda README (selectors, :auto-planning, :auto-ts)](https://github.com/alphapapa/org-super-agenda)
-- [emacs-calfw (kiwanami/Al Haji-Ali) — views, version, maintenance](https://github.com/kiwanami/emacs-calfw)
-- [org-ql (alphapapa) — query language, org-ql-block, saved week views](https://github.com/alphapapa/org-ql)
-- [org-ql examples.org — date-range and :auto-ts query examples](https://github.com/alphapapa/org-ql/blob/master/examples.org)
-- [Org Manual — Agenda Commands](https://orgmode.org/manual/Agenda-Commands.html)
-- [Worg — Custom Agenda Commands tutorial](https://orgmode.org/worg/org-tutorials/org-custom-agenda-commands.html)
+- [org-super-agenda](https://github.com/alphapapa/org-super-agenda) (selectors,
+  `:auto-planning`, `:auto-ts`)
+- [emacs-calfw](https://github.com/kiwanami/emacs-calfw)
+- [org-ql](https://github.com/alphapapa/org-ql)
+- [Org manual: Agenda commands](https://orgmode.org/manual/Agenda-Commands.html)
+- [Worg: custom agenda commands](https://orgmode.org/worg/org-tutorials/org-custom-agenda-commands.html)
