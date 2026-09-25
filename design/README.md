@@ -61,10 +61,12 @@ and are being brought into the shape above.
 
 ### Foundations — `foundations/`
 
-- `vaults.md` — *planned.* Several Org folders, one open at a time, switched at
-  runtime without one vault's settings leaking into the next.
-- `data-safety.md` — *planned.* Why edits are not lost: one save path,
-  reverting, file watching, git sync, and living alongside Dropbox.
+- [`vaults.md`](foundations/vaults.md) — Several Org folders, one open at a
+  time, switched at runtime without one vault's settings leaking into the
+  next; where each kind of setting lives.
+- [`data-safety.md`](foundations/data-safety.md) — Why edits are not lost:
+  one save path, reverting, file watching, git sync and its failure reporting,
+  and living alongside Dropbox.
 
 ### Planning — `planning/`
 
