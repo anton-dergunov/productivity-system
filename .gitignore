@@ -12,6 +12,9 @@
 !docs/
 !docs/*.org
 
+!design-docs/
+!design-docs/*.md
+
 !icons/
 !icons/*.svg
 !icons/material-symbols.codepoints
