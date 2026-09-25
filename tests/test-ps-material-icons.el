@@ -59,6 +59,49 @@
      (should (string-match-p "fill=\"#123456\""
                              (ps/material-icons-svg "work" "#123456"))))))
 
+(defface ps/material-icons-test-face
+  '((t :foreground "#123456"))
+  "A face with a known foreground, for the colour tests.")
+
+(defface ps/material-icons-test-bare-face
+  '((t))
+  "A face that names no foreground.")
+
+(ert-deftest ps/material-icons--color-from-a-face ()
+  "A face gives its foreground, so the SVG follows the theme."
+  (ps/material-icons-test--fresh-table
+   (let ((ps/material-icons-color 'ps/material-icons-test-face))
+     (should (equal (ps/material-icons--resolve-color) "#123456"))
+     (should (string-match-p "fill=\"#123456\"" (ps/material-icons-svg "work"))))))
+
+(ert-deftest ps/material-icons--color-from-a-function ()
+  "A function is asked each time, and may return a face or a colour."
+  (let ((ps/material-icons-color (lambda () 'ps/material-icons-test-face)))
+    (should (equal (ps/material-icons--resolve-color) "#123456")))
+  (let ((ps/material-icons-color (lambda () "#654321")))
+    (should (equal (ps/material-icons--resolve-color) "#654321"))))
+
+(ert-deftest ps/material-icons--color-string-is-used-verbatim ()
+  "A colour string is still a fixed colour for every theme."
+  (should (equal (ps/material-icons--resolve-color "#abcdef") "#abcdef")))
+
+(ert-deftest ps/material-icons--color-falls-back-without-a-foreground ()
+  "A face with no foreground (a text terminal, a theme gap) still draws."
+  (should (equal (ps/material-icons--resolve-color 'ps/material-icons-test-bare-face)
+                 ps/material-icons--fallback-color))
+  (should (equal (ps/material-icons--resolve-color 'no-such-face-xyz)
+                 ps/material-icons--fallback-color)))
+
+(ert-deftest ps/material-icons--color-change-is-reported-once ()
+  "The first check after a colour change is non-nil; the next is nil."
+  (let ((ps/material-icons--last-color nil)
+        (ps/material-icons-color "#111111"))
+    (should (ps/material-icons-color-changed-p))
+    (should-not (ps/material-icons-color-changed-p))
+    (setq ps/material-icons-color "#222222")
+    (should (ps/material-icons-color-changed-p))
+    (should-not (ps/material-icons-color-changed-p))))
+
 (ert-deftest ps/material-icons--svg-unknown-is-nil ()
   "An unknown name produces no SVG."
   (ps/material-icons-test--fresh-table

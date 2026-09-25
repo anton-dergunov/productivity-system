@@ -9,10 +9,17 @@
 ;;
 ;; Icons are named by their Material Symbols name (e.g. "edit_square" or
 ;; "Edit Square"); names are resolved to codepoints from the official
-;; `*.codepoints' list shipped alongside this file.  Two declarative maps drive
-;; the agenda and file-tree icons:
-;;   `ps/material-icons-category-map' — <Category>.org basename -> icon name
-;;   `ps/material-icons-folder-map'   — folder name             -> icon name
+;; `*.codepoints' list shipped alongside this file.  Three declarative maps
+;; drive the agenda and file-tree icons:
+;;   `ps/material-icons-category-map'        — <Category>.org basename -> icon
+;;   `ps/material-icons-folder-map'          — folder name -> its own icon
+;;   `ps/material-icons-folder-contents-map' — folder name -> icon for its files
+;;
+;; The colour is a face rather than a fixed value, so icons follow the theme.
+;; An image cannot be recoloured by a face after the fact -- the fill is baked
+;; into the SVG -- so the face is read each time an icon is drawn, and
+;; `ps/material-icons-color-changed-p' tells a theme-change hook when the
+;; already-built icons need drawing again.
 ;;
 ;;; Code:
 
@@ -30,10 +37,21 @@ this family for the glyphs to render; otherwise icons fall back per consumer."
   :type 'string
   :group 'ps-material-icons)
 
-(defcustom ps/material-icons-color "#5f6368"
-  "Fill color for Material Symbols glyph icons."
-  :type 'string
+(defcustom ps/material-icons-color 'shadow
+  "Fill colour for Material Symbols glyph icons: a face, a colour or a function.
+A face (the default, `shadow') means its foreground, read when each icon is
+drawn, so icons follow the theme.  A colour string fixes one colour for every
+theme.  A function is called with no arguments each time and returns either,
+which is how the choice itself can depend on the theme that is loaded now
+rather than the one configured at startup."
+  :type '(choice (face :tag "Foreground of a face")
+                 (string :tag "Colour")
+                 (function :tag "Function returning a face or colour"))
   :group 'ps-material-icons)
+
+(defconst ps/material-icons--fallback-color "gray50"
+  "Fill used when `ps/material-icons-color' names a face with no foreground.
+That happens on a text terminal, and for a face a theme leaves unspecified.")
 
 (defcustom ps/material-icons-codepoints-file
   (expand-file-name "icons/material-symbols.codepoints" user-emacs-directory)
@@ -133,20 +151,50 @@ graphical display (e.g. batch)."
         (max 1 (round (* ps/material-icons-height-scale (default-font-height))))
       20)))
 
+;;; Colour
+
+(defun ps/material-icons--resolve-color (&optional spec)
+  "Return the fill colour SPEC names, as a colour string.
+SPEC defaults to `ps/material-icons-color'.  A face gives its foreground
+\(inherited attributes included); a string is returned as is; a function is
+called and its result resolved the same way."
+  (let* ((spec (or spec ps/material-icons-color))
+         (spec (if (and (functionp spec) (not (facep spec))) (funcall spec) spec)))
+    (cond
+     ((stringp spec) spec)
+     ((facep spec)
+      (let ((color (face-foreground spec nil t)))
+        (if (and (stringp color) (not (string-prefix-p "unspecified" color)))
+            color
+          ps/material-icons--fallback-color)))
+     (t ps/material-icons--fallback-color))))
+
+(defvar ps/material-icons--last-color nil
+  "The fill colour the currently built icons were drawn with.")
+
+(defun ps/material-icons-color-changed-p ()
+  "Return non-nil if the fill colour differs from the one last recorded.
+Records the current colour either way, so a caller redrawing icons on a theme
+change does the work only when the change actually reached them."
+  (let ((color (ps/material-icons--resolve-color)))
+    (prog1 (not (equal color ps/material-icons--last-color))
+      (setq ps/material-icons--last-color color))))
+
 ;;; Rendering
 
 (defun ps/material-icons-svg (name &optional color)
   "Return an SVG string drawing icon NAME, or nil if NAME is unknown.
 Mirrors the attributes the old icon SVGs used (height=20 width=24,
 viewBox=\"0 -960 960 960\"): the font em is 960 units, so font-size 960 at
-baseline y=0 fills the box.  COLOR defaults to `ps/material-icons-color'."
+baseline y=0 fills the box.  COLOR defaults to the colour
+`ps/material-icons-color' names."
   (when-let ((codepoint (ps/material-icons-codepoint name)))
     (format
      (concat "<svg xmlns=\"http://www.w3.org/2000/svg\""
              " height=\"20px\" width=\"24px\" viewBox=\"0 -960 960 960\""
              " fill=\"%s\"><text x=\"0\" y=\"0\" font-family=\"%s\""
              " font-size=\"960\">&#x%x;</text></svg>")
-     (or color ps/material-icons-color)
+     (or color (ps/material-icons--resolve-color))
      ps/material-icons-font-family codepoint)))
 
 (defun ps/material-icons-image (name &optional ascent height color)

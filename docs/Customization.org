@@ -361,6 +361,12 @@ See =samples/realistic/workspace.org= for a complete example. To fine-tune
 size/alignment, adjust =ps/material-icons-height-scale= and
 =ps/file-tree-icon-ascent= in =config.org= → /Settings/.
 
+Icon colour follows the color theme and changes with it, including while you
+audition themes: most themes draw icons in their muted text colour, and
+Solarized in its body-text colour. To pick your own, set
+=ps/material-icons-color= in =config.org= → /Settings → Material icons/ to a
+face (its colour is used) or to a fixed colour such as ="#5f6368"=.
+
 * File tree layout
 All of these live in =config.org= → /Settings → File Tree/.
 

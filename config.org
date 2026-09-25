@@ -611,6 +611,13 @@ Symbols Outlined" font — no per-icon SVG files. See the README for installing
 the font. Icon *size* auto-derives from your font height (so alignment stays
 stable across fonts/OSes); tune =ps/material-icons-height-scale= once if needed.
 
+Icon *colour* comes from a face, so icons follow the theme and are redrawn when
+it changes: =shadow= (the theme's muted text) for most themes, and the body-text
+colour (=default=) under Solarized, whose =shadow= is too pale for icons. The
+choice is made against the theme loaded *now*, so it stays right while
+previewing themes. Set =ps/material-icons-color= to a face or a colour string
+instead to use that for every theme.
+
 Three maps decide which icon each tree entry gets: =category-map=
 (=<Category>.org= → icon), =folder-map= (a *directory's own* icon, at any
 depth), and =folder-contents-map= (one icon for every file under a folder).
@@ -621,7 +628,13 @@ personal categories never enter this public repo. Names come from
 https://fonts.google.com/icons.
 #+begin_src emacs-lisp
   (setq ps/material-icons-font-family "Material Symbols Outlined")
-  (setq ps/material-icons-color       "#5f6368")
+  (defun ps/icons-theme-face ()
+    "Face whose foreground colours the icons under the theme loaded now."
+    (if (seq-some (lambda (theme) (string-prefix-p "solarized-" (symbol-name theme)))
+                  custom-enabled-themes)
+        'default
+      'shadow))
+  (setq ps/material-icons-color       #'ps/icons-theme-face)
   (setq ps/material-icons-height      'auto)
   (setq ps/material-icons-height-scale 1.0)
   (setq ps/material-icons-category-map        nil)
@@ -960,6 +973,18 @@ loads it, then deletes it. Silently does nothing when the file is absent."
                (ps/vault-configured-p))
       (ps/file-tree-icons-apply my-org-base-directory)
       (when (fboundp 'ps/file-tree-refresh) (ps/file-tree-refresh))))
+
+  ;; Icon colour comes from a face, but an icon's colour is baked into its
+  ;; image, so a theme change has to redraw the icons already built. Only when
+  ;; the colour actually changed: `window-setup-hook' reloads the same theme at
+  ;; startup, and redrawing then would rebuild the file tree for nothing.
+  (defun ps/icons--on-theme-change (&rest _)
+    "Redraw the agenda and file-tree icons if the theme changed their colour."
+    (when (ps/material-icons-color-changed-p)
+      (ps/icons-reapply)))
+
+  (when (boundp 'enable-theme-functions)
+    (add-hook 'enable-theme-functions #'ps/icons--on-theme-change))
 
   (defun ps/open-workspace-config ()
     "Open this vault's workspace.org (a fresh buffer if it doesn't exist)."

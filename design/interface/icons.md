@@ -29,6 +29,17 @@ thousands of names works. Names resolve to codepoints through the official
 Going through an image, rather than inserting the glyph as text, gives icons
 the same sizing and alignment as any other image.
 
+**Colour follows the theme.** `ps/material-icons-color` is a face (its
+foreground is used), a fixed colour, or a function returning either. The
+default is `shadow`, the theme's muted text. `config.org` passes
+`ps/icons-theme-face`, which picks `default` under Solarized, since Solarized's
+`shadow` is too pale for icons, and `shadow` otherwise. The function is asked
+against the theme loaded *now*, so the choice stays right while previewing
+themes. A fill is baked into each image, so a theme change redraws the icons
+already built (`ps/icons--on-theme-change` on `enable-theme-functions`), but
+only when the colour actually changed: startup reloads the same theme once,
+and that must not rebuild the file tree for nothing.
+
 **Size follows the text** (`ps/material-icons-height` `auto`, from the default
 font's height, with `ps/material-icons-height-scale`), so alignment holds
 across fonts and machines.
@@ -83,6 +94,3 @@ agenda's date badges use the same two glyphs, set separately in
   (`ps-agenda-emoji`, matched by sentence embeddings in
   `scripts/org_emoji_matcher.py`) is a stopgap, to be replaced by Material
   Symbols glyphs through this same pipeline.
-- **Theme-aware icon colour.** `ps/material-icons-color` is one fixed grey for
-  every theme, against the project's preference for colours derived from faces
-  (the schedule-icon face already follows the theme outside Solarized).
