@@ -59,6 +59,28 @@ Git history. To see what you're running, check the repository:
 https://github.com/anton-dergunov/emacs-gtd-config
 
 * History
-# TODO: Fill in the story of the project — why it started, how it grew, and any
-# milestones worth mentioning.
-/(Coming soon.)/
+It started in 2021 as a personal Emacs setup and grew, mostly during 2026, into
+a planning system of its own. The main steps:
+
+- *2021–2024 — a personal configuration.* A plain Emacs setup, rewritten in 2024
+  as one readable configuration file, with the first category icons in the
+  agenda and a first fix for the blank lines mobile Org apps remove.
+- *Spring 2026 — building blocks.* Free-time availability, conflict checking and
+  timezone shifting became built-in commands. Every setting moved to one place,
+  and the Productivity menu appeared. Notes began syncing to Git automatically.
+- *June 2026 — the look.* A new file tree with category icons. The agenda was
+  redesigned into aligned columns with badges, a timeline for the day, and a
+  calendar for any span. A quiet multilingual typo checker, a planning-focused
+  mode line, an auto-hiding scroll indicator, and this documentation arrived,
+  along with the AI assistant in a side panel.
+- *July–August 2026 — reliability and reach.* A fix for Emacs freezing on macOS.
+  Blank lines lost to mobile edits recovered from your notes' own history.
+  Dropbox and Git made safe together, and automatic saves that never write over
+  a newer file. Situation views, fonts chosen by role with a comfortable reading
+  width, several notes folders switchable without restarting, links that open
+  on one click, and back and forward.
+- *September 2026 — the reasoning written down.* Why each part works the way it
+  does is now recorded for anyone changing the code.
+
+The longer story, including which approaches were tried and replaced and why, is
+in [[file:../design/history.md][the design history]].

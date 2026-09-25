@@ -47,10 +47,6 @@ One or two sentences: what this is about.
 
 ## Contents
 
-Notes marked *planned* are not written yet. Notes marked *to rewrite* still
-hold their original draft (a pre-build plan, a chat, or an investigation log)
-and are being brought into the shape above.
-
 ### Overview
 
 - [`architecture.md`](architecture.md) — How the pieces fit: the loading
@@ -79,8 +75,9 @@ and are being brought into the shape above.
   as a timeline or a list of events instead of Org's time grid.
 - [`situations.md`](planning/situations.md) — Context tags as affordances, and
   the saved searches ("situations") derived from one declaration.
-- [`capture-chat.md`](planning/capture-chat.md) — *to rewrite* (a prompt). To
-  become `capture.md`, or be dropped in favour of the info-triage project.
+- [`capture.md`](planning/capture.md) — How captured material reaches the
+  plans: the review queue for the separate info-triage project, and the Act,
+  Keep or Drop rule for what enters a plan.
 
 ### Editing — `editing/`
 
