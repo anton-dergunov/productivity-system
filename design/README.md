@@ -53,11 +53,11 @@ and are being brought into the shape above.
 
 ### Overview
 
-- `architecture.md` — *planned.* How the pieces fit: the loading chain,
-  `config.org` versus `lisp/`, the settings layers, load-order constraints,
-  and the principles shared across modules.
-- `history.md` — *planned.* The major changes of direction and why: packages
-  replaced, approaches dropped.
+- [`architecture.md`](architecture.md) — How the pieces fit: the loading
+  chain, `config.org` versus `lisp/`, load-order constraints, the principles
+  shared across modules, and how changes are verified. Start here.
+- [`history.md`](history.md) — The major changes of direction and why:
+  packages replaced, approaches dropped.
 
 ### Foundations — `foundations/`
 
@@ -121,8 +121,9 @@ and are being brought into the shape above.
   its terminal drawn correctly.
 - [`agent-context.md`](ai/agent-context.md) — What an AI agent is told about
   the Org conventions, and how that stays in sync with `config.org`.
-- `in-emacs-llm.md` — *planned.* The gptel and semantic-search experiment, and
-  why it was set aside (the code is kept at the `archive/llm-integration` tag).
+- [`in-emacs-llm.md`](ai/in-emacs-llm.md) — The gptel and semantic-search
+  experiment, why it was set aside for Claude Code, and what would bring it
+  back (the code is kept at the `archive/llm-integration` tag).
 
 ### Platform — `platform/`
 
