@@ -461,7 +461,7 @@ dictionary files (=<locale>.aff= / =<locale>.dic=) into
 If =enchant= isn't installed, the rest of the config still loads — typo checking
 just stays off.
 
-The design rationale is in =design-docs/typo-checker.md=.
+The design rationale is in =design/editing/typo-checker.md=.
 
 * Under the hood / Customize
 - Reading-width margins: =lisp/ps-prose-width.el= (uses the =visual-fill-column=

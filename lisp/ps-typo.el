@@ -5,7 +5,7 @@
 ;; A quiet, multilingual word-level typo checker for Org buffers, built on top
 ;; of Jinx (https://github.com/minad/jinx, an `enchant'-backed spell checker).
 ;;
-;; Design goals (see docs/typo-checker.md for the full rationale):
+;; Design goals (see design/editing/typo-checker.md for the full rationale):
 ;;
 ;; * High precision, low recall.  A flagged word should almost always be a real
 ;;   typo.  Recall is intentionally sacrificed.

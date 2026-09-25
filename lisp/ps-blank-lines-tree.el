@@ -3,9 +3,9 @@
 ;;; Commentary:
 
 ;; The representation underneath blank-line recovery (see
-;; `design-docs/blank-line-recovery.md').  An Org file parses into a *tree of
-;; nodes*, never into a flat line sequence with a parallel gap vector.  Two
-;; reasons, both load-bearing:
+;; `design/editing/blank-line-recovery.md').  An Org file parses into a
+;; *tree of nodes*, never into a flat line sequence with a parallel gap
+;; vector.  Two reasons, both load-bearing:
 ;;
 ;; 1. A node's body is atomic.  Reordering headings changes only their order,
 ;;    but reordering lines inside prose destroys its meaning — so a body is

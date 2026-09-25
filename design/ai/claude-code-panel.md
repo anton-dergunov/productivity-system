@@ -88,7 +88,7 @@ This does not make sense.
 ## eat / Claude Code freeze: 100% CPU runaway (2026-07-21)
 
 Distinct from the scrollbar `ns_flush_display` wedge documented in
-`design-docs/scroll-bars.md` (that one is 0% CPU, truly blocked). This one:
+`design/interface/scroll-indicator.md` (that one is 0% CPU, truly blocked). This one:
 
 - **~100% CPU, spinning.** Caught live via `sample`: the main thread is in a
   single `eat--process-output-queue` call that entered and never returned

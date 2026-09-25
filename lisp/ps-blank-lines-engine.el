@@ -59,7 +59,7 @@ lines intact.
 
 `style' works the spacing out from how the rest of your files are spaced.
 `leave-alone' proposes nothing there, so only remembered spacing is ever
-restored.  See `design-docs/blank-line-recovery.md'."
+restored.  See `design/editing/blank-line-recovery.md'."
   :type '(choice (const :tag "Work it out from your own style" style)
                  (const :tag "Leave those gaps alone" leave-alone))
   :group 'ps-blank-lines)
@@ -242,7 +242,7 @@ Levels 1 and 3+ are decided by the heading alone (100% and ~0% in the
 corpus).  Level 2 is decided by what precedes it, and the prose distinction
 is kept for every level-2 case because it is worth 25x: a level-2 heading
 after a bare sibling carries a blank 20% of the time, after a sibling with
-prose only 0.8%.  See `design-docs/blank-line-recovery.md'."
+prose only 0.8%.  See `design/editing/blank-line-recovery.md'."
   (cond
    ((= level 1) 'l1)
    ((>= level 3) 'l3+)

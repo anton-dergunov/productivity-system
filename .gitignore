@@ -12,8 +12,9 @@
 !docs/
 !docs/*.org
 
-!design-docs/
-!design-docs/*.md
+!design/
+!design/**/
+!design/**/*.md
 
 !icons/
 !icons/*.svg

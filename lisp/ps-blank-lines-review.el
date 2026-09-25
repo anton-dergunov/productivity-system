@@ -51,7 +51,7 @@
 ;; and without it a user who has customized it away from t gets a prompt about
 ;; killing their own file buffer between those two hooks.
 ;;
-;; See `design-docs/blank-line-recovery.md'.
+;; See `design/editing/blank-line-recovery.md'.
 
 ;;; Code:
 

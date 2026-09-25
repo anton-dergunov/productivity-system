@@ -17,7 +17,7 @@
 ;; `.claude/generated-context.md' under `my-org-base-directory'), which AGENTS.md
 ;; simply points at. AGENTS.md itself stays entirely hand-written and is never
 ;; touched from here -- which also means the generated file can be gitignored.
-;; See design-docs/agent-context-sync.md for the fuller analysis.
+;; See design/ai/agent-context.md for the fuller analysis.
 ;;
 ;; `ps/ai-context-sync' writes that file, but only when the rendered content has
 ;; actually changed, so a no-op run leaves the file's mtime untouched (this

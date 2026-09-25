@@ -96,5 +96,10 @@ and =&= reopens it in your real browser.
 | =M-→= / =M-←=   | demote / promote heading                  |
 | =M-↑= / =M-↓=   | move subtree up / down                    |
 | =TAB= / =S-TAB= | fold subtree / cycle whole-buffer folding |
+| =C-x C-;=       | comment / uncomment the selected lines    |
+
+Inside a =#+begin_src= block, =C-x C-;= uses the block language's own comment
+syntax, so uncommenting example code removes the prefix rather than adding
+another one.
 
 For general Emacs keys (movement, files, windows), see [[file:Emacs-basics.org][Emacs basics]].

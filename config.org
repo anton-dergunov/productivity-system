@@ -2290,7 +2290,7 @@ The ignore list and category icons live in =lisp/ps-file-tree.el= and
     ;; Keep treemacs's own width lock off: it works by setting
     ;; `window-size-fixed', which also blocks dragging the divider. The width
     ;; is held steady across frame resizes by `ps/file-tree-width-setup'
-    ;; instead -- see design-docs/file-view-resizing.md.
+    ;; instead -- see design/files-and-windows/file-tree.md.
     (setq treemacs-width-is-initially-locked nil)
     (ps/file-tree-width-setup)
 

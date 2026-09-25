@@ -159,9 +159,9 @@ so scroll-reveal is not delayed by this.
 Beyond saving CPU, this bounds a real failure mode: every timer firing makes
 Emacs run a redisplay from `detect_input_pending_run_timers', which on the
 macOS NS build enters a nested AppKit event loop, and that loop very
-occasionally never exits -- wedging all of Emacs until it is restarted (see
-design-docs/scroll-bars.md).  The idle rate is therefore this module's
-standing exposure to that bug.  Raising it lowers exposure; the only cost is
+occasionally never exits -- wedging all of Emacs until it is restarted
+\(see design/interface/scroll-indicator.md).  The idle rate is therefore
+this module's standing exposure to that bug.  Raising it lowers exposure; the only cost is
 that hover-reveal can take up to this long to notice the pointer entering
 the track."
   :type 'number :group 'ps-scrollbar)
@@ -765,7 +765,7 @@ track): jump to the clicked position."
        ;; scroll history entirely inside its JavaScript process.  eat's
        ;; window-start never changes (always pmin), so our proportion math
        ;; returns 'hidden permanently -- no meaningful pill is possible.
-       ;; See design-docs/scroll-bars.md for the full investigation.
+       ;; See design/interface/scroll-indicator.md for the full investigation.
        (not (string-prefix-p "*claude-code["
                              (buffer-name (window-buffer window))))))
 

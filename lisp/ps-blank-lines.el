@@ -24,7 +24,7 @@
 ;; through `ps-blank-lines-review.el', one Ediff session at a time, and only
 ;; for what the user accepts there.
 ;;
-;; See `design-docs/blank-line-recovery.md'.
+;; See `design/editing/blank-line-recovery.md'.
 
 ;;; Code:
 

@@ -5,7 +5,7 @@ proposed here. It answers: (1) why the default agenda dispatcher looks messy,
 (2) what Org-mode/Emacs offers for week/month-style views, and (3) how a
 week/month view would fit the existing architecture, plus a look at `calfw` as a
 different-paradigm alternative. The concrete build that came out of this research
-lives in `agenda-calendar-view.md`.
+lives in `agenda-calendar-view.md` (same folder).
 
 ## Context
 

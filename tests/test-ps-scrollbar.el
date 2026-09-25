@@ -145,7 +145,7 @@ left with the text."
 (ert-deftest ps/scrollbar--terminal-not-excluded ()
   "eat-mode and term-mode are not in the mode-based exclude list.
 Claude Code session buffers are excluded by name (not by mode) -- see
-`ps/scrollbar--candidate-window-p' and design-docs/scroll-bars.md."
+`ps/scrollbar--candidate-window-p' and design/interface/scroll-indicator.md."
   (should-not (memq 'eat-mode ps/scrollbar-exclude-modes))
   (should-not (memq 'term-mode ps/scrollbar-exclude-modes)))
 

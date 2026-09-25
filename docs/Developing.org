@@ -115,6 +115,9 @@ The established pattern:
    the change.
 
 * Design notes
-Longer design rationale for several features lives in =design-docs/= (the agenda
-redesign, the schedule view, the mode line, the typo checker). These are
-internal notes, not user docs.
+Why the configuration is built the way it is — the decisions, the alternatives
+that were rejected, and what is not built yet — lives in =design/=, grouped by
+topic. Start with [[file:../design/README.md][the design notes index]], which
+lists the notes and explains what belongs there rather than in a module's
+=;;; Commentary:= header. These are internal notes, not user docs; when a change
+makes or reverses a design decision, update the note that records it.
