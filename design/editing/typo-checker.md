@@ -1,11 +1,14 @@
-# Multilingual, high-precision typo checker for Org files
+# Typo checker
 
-This document records the design rationale behind the Org typo checker
-(`lisp/ps-typo.el`). For setup instructions see the **Typo / Spell Checking**
-section of [README.md](../README.md); for the knobs see the **Settings → Typo /
-spell checking** block in `config.org`.
+High-precision spell checking for Org files written in several languages at
+once: which engine, which dictionaries, and how false alarms are kept rare.
 
-## Goals
+**Status:** built
+**Code:** `lisp/ps-typo.el`; settings block `** Typo / spell checking
+(ps-typo.el)`. User docs: `docs/Customization.org` → "Typo / spell checking"
+(setup, including `enchant`).
+
+## Problem
 
 These Org files mix languages within the same buffer and even the same
 paragraph (English, Russian, Spanish, occasional copy-paste of other languages),
@@ -102,33 +105,25 @@ cheap:
    real word rather than a name/term with no near neighbour. An extra precision
    notch you can A/B.
 
-## What was built
+## How it is put together
 
-- **Engine:** Jinx (`enchant`-backed), enabled in Org buffers only.
-- **Language strategy:** static multi-dictionary **union** (`ps/typo-languages`,
-  default `en_US ru_RU es_ES`). Auto-detection never gates flagging.
-- **Correction:** `M-$` → `jinx-correct` on the word at point (plus add-to-personal
-  -dictionary from the same prompt).
-- **Appearance:** the `jinx-misspelled` face themed to a subtle wavy underline
-  (`ps/typo-underline-color`, `auto` derives a muted colour from `shadow`).
-- **Suggestion ordering** (`ps/typo-order-suggestions-by-language`, default on):
-  `guess-language` detects the surrounding paragraph (trigram scan, sub-millisecond)
-  and lists that language's suggestions first. It never affects whether a word is
-  flagged, and falls back silently if `guess-language` is unavailable.
+- **Engine:** Jinx, backed by `enchant`, in Org buffers only.
+- **Languages:** the static union of `ps/typo-languages` (English, Russian and
+  Spanish by default). Language detection never decides whether a word is
+  flagged.
+- **Correction:** `M-$` runs `jinx-correct` on the word at point; the same
+  prompt can add the word to the personal dictionary.
+- **Look:** `jinx-misspelled` is themed to a subtle wavy underline.
+  `ps/typo-underline-color` set to `auto` derives a muted colour from `shadow`.
+- **Suggestion order** (`ps/typo-order-suggestions-by-language`, on by
+  default): `guess-language` detects the surrounding paragraph's language and
+  lists that language's suggestions first. This is the one safe use of
+  detection, since it only reorders suggestions for a word already flagged. It
+  is skipped silently if `guess-language` is missing.
+- **Read-only buffers are not checked:** `ps/typo-inhibit-predicate` turns the
+  checker off in the documentation reading view, where nothing can be edited.
 
-The module keeps engine coupling inside `ps/typo-setup`, so the pure helpers (the
-regexp set, the near-miss decision, language/dict ordering, the exclusion merge)
-load and unit-test under a bare `emacs -Q` without Jinx installed. Tests:
-`tests/test-ps-typo.el`.
-
-## How to verify
-
-1. `./scripts/run_emacs.sh`, open `samples/realistic/Play/Languages.org` — Org
-   loads cleanly and words are checked.
-2. Type `calor` and a Cyrillic word in prose → not flagged. Type `teh` /
-   `recieve` → flagged with a subtle wavy underline.
-3. Put typos inside `=verbatim=`, `~code~`, a `#+begin_src` block, a link target
-   and a file path → none flagged.
-4. `M-$` on a flagged word lists suggestions and can save the word permanently.
-5. Scroll a large file → only the visible region is checked; no lag.
-6. `EMACS_BIN=… ./scripts/org_test.sh` passes, including `tests/test-ps-typo.el`.
+All coupling to Jinx is confined to `ps/typo-setup`. The pure helpers (the
+regexp set, the near-miss decision, language ordering, the face-exclusion merge)
+therefore load and are tested under a bare `emacs -Q` without Jinx installed
+(`tests/test-ps-typo.el`).

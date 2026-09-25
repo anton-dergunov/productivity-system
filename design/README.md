@@ -93,11 +93,10 @@ and are being brought into the shape above.
 
 - [`typography.md`](interface/typography.md) — Fonts by role, and which
   surfaces can use a proportional font.
-- [`mode-line.md`](interface/mode-line.md) — *to rewrite* (a pre-build brief).
-  The planning-focused mode line.
-- [`scroll-indicator.md`](interface/scroll-indicator.md) — *to rewrite* (its
-  freeze investigation moves to `platform/macos.md`). The auto-hiding scroll
-  indicator.
+- [`mode-line.md`](interface/mode-line.md) — The planning-focused mode line:
+  what it shows, and everything it leaves out.
+- [`scroll-indicator.md`](interface/scroll-indicator.md) — The auto-hiding
+  scroll indicator that replaces the native scroll bar.
 - `icons.md` — *planned.* The Material Symbols icon pipeline shared by the
   agenda, the file tree and the folder listing.
 
@@ -121,8 +120,9 @@ and are being brought into the shape above.
 
 ### Platform — `platform/`
 
-- `macos.md` — *planned.* macOS-specific behaviour, including the freeze fixed
-  by the patches in [`patches/`](../patches/).
+- [`macos.md`](platform/macos.md) — macOS-specific behaviour: the freeze fixed
+  by the patches in [`patches/`](../patches/), the habits that keep its exposure
+  low, and the platform facts other modules depend on.
 - `upstream-workarounds.md` — *planned.* Every workaround for a bug in Emacs or
   a package: the bug, how to tell it has been fixed, and how to remove the
   workaround.

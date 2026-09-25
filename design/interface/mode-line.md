@@ -1,535 +1,129 @@
-Emacs Planning System — Mode Line Redesign
-
-Background
-
-This Emacs configuration is not a general-purpose editor.
-
-It is a dedicated planning system built around:
-
-* Org files
-* Org Agenda
-* Treemacs (File View)
-* Git synchronization
-
-The user does not use:
-
-* programming language modes
-* LSP
-* Flycheck/Flymake
-* compilation
-* shells
-* email
-* Git branches
-* encoding indicators
-* line-ending indicators
-* major/minor mode lists
-
-The goal is to redesign the mode line so that it communicates only information relevant to planning and navigation.
-
-The design should feel closer to Obsidian, Logseq, or a dedicated planning application than a traditional Emacs editor.
-
-⸻
-
-Design Principles
-
-1. Every item must justify its existence
-
-Mode line space is valuable.
-
-Information that is always obvious or rarely needed should be removed.
-
-Examples to remove:
-
-* Org mode indicator
-* Projectile
-* Ivy
-* Which-Key
-* Wrap
-* Git branch
-* Encoding
-* Line endings
-* Read-only indicators
-
-⸻
-
-2. Minimize duplication
-
-Global information should not be duplicated in every window.
-
-Example:
-
-Git synchronization state is global.
-
-Displaying it in every Org window wastes space.
-
-Instead, display synchronization state in Treemacs/File View.
-
-⸻
-
-3. Prioritize navigation context
-
-The mode line should answer:
-
-* Which document am I viewing?
-* Where am I in the document?
-* Which section am I currently reading?
-
-⸻
-
-Org File Mode Line
-
-Final Structure
-
-Photo ▼ · L53 · 38% · Search Ranking > Dataset Cleanup
-
-⸻
-
-Component 1: File Selector
-
-Example:
-
-Photo ▼
-
-Behavior:
-
-* Hide “.org” extension.
-* Clicking opens a menu.
-* Menu shows the full plans hierarchy.
-* Directories are shown as folders.
-* Org files are shown as selectable entries.
-
-Example:
-
-Areas/
-Health
-Learning
-
-Current/
-Today
-Inbox
-Projects
-
-Vision/
-Goals
-Ideas
-
-This replaces old-school buffer cycling behavior.
-
-⸻
-
-Component 2: Position
-
-Example:
-
-L53 · 38%
-
-Meaning:
-
-* line 53
-* 38% through file
-
-Column number is intentionally omitted.
-
-Reason:
-
-Column position has little value in planning documents.
-
-⸻
-
-Component 3: Current Org Heading
-
-Example:
-
-Search Ranking > Dataset Cleanup
-
-Purpose:
-
-Provide context inside large Org files.
-
-⸻
-
-Truncation Strategy
-
-The heading should be the first item truncated.
-
-Priority order:
-
-1. Preserve file selector.
-2. Preserve position.
-3. Truncate heading if necessary.
-
-Example:
-
-Photo ▼ · L53 · 38% · Search Ranking > Dataset Clea…
-
-If still too long:
-
-Photo ▼ · L53 · 38% · Search Ranking…
-
-The filename should ideally never be truncated.
-
-⸻
-
-Navigation via Heading
-
-Potential future enhancement.
-
-Clicking:
-
-Search Ranking
-
-would open a menu of sibling headings.
-
-Selecting an entry would jump to that section.
-
-Status:
-
-Deferred.
-
-Not needed for version 1.
-
-⸻
-
-Save State Indicator
-
-Decision:
-
-Remove entirely.
-
-Reason:
-
-The system already:
-
-* auto-saves Org buffers
-* auto-reverts changed files
-
-The save state therefore provides very little value.
-
-This mirrors applications such as Obsidian.
-
-⸻
-
-Frame Title
-
-Current:
-
-Photo.org
-
-Proposed:
-
-Photo
-
-Remove “.org” extension everywhere.
-
-This applies to:
-
-* frame title
-* mode line
-* menus
-
-Extensions provide no useful information because every file is an Org file.
-
-⸻
-
-Agenda Naming
-
-Current names:
-
-Org Agenda
-All
-
-These names are implementation-oriented.
-
-Use names based on purpose instead.
-
-⸻
-
-Dashboard
-
-Main planning view.
-
-Combines:
-
-* scheduled items
-* deadlines
-* current tasks
-
-Example mode line:
-
-Dashboard
-
-No position indicator.
-
-Reason:
-
-Dashboard is intentionally compact and focused.
-
-⸻
-
-Tasks
-
-Full task list.
-
-Example mode line:
-
-Tasks · L120 · 64%
-
-Position information is useful because this view can become long.
-
-⸻
-
-Treemacs / File View Mode Line
-
-Purpose:
-
-Display global planning-system status.
-
-⸻
-
-File Set Selector
-
-Current:
-
-[Focus ▼]
-
-Question:
-
-Should brackets remain?
-
-⸻
-
-Option A
-
-[Focus ▼]
-
-Pros:
-
-* visually grouped
-* resembles a control/widget
-
-Cons:
-
-* inconsistent with Org mode line
-
-⸻
-
-Option B (Preferred)
-
-Focus ▼
-
-Pros:
-
-* cleaner
-* matches file selector design
-* more modern appearance
-
-Recommendation:
-
-Drop brackets.
-
-⸻
-
-Git Synchronization Status
-
-Display after File Set selector.
-
-Examples:
-
-Focus ▼ · ✓ Sync
-
-Focus ▼ · ↻ Syncing
-
-Focus ▼ · ⚠ Sync Failed
-
-Focus ▼ · ⊘ Sync Off
-
-⸻
-
-Compact Alternatives
-
-Space may become limited.
-
-Possible compact forms:
-
-✓ Sync
-
-↻ Sync
-
-⚠ Failed
-
-⊘ Off
-
-⸻
-
-Ultra-Compact Forms
-
-✓
-
-↻
-
-⚠
-
-⊘
-
-Not recommended.
-
-The user has already noted that icon-only states are difficult to remember.
-
-Text should remain visible.
-
-⸻
-
-Last Successful Sync Time
-
-Options:
-
-Option A (Preferred)
-
-Do not display.
-
-Show only in tooltip/menu.
-
-Example:
-
-✓ Sync
-
-Hover:
-
-Last successful sync: 21:13
-
-⸻
-
-Option B
-
-Display relative time.
-
-✓ 3m
-
-✓ 10m
-
-Pros:
-
-Compact.
-
-Cons:
-
-May create unnecessary visual noise.
-
-⸻
-
-Option C
-
-Display absolute time.
-
-✓ 21:13
-
-Not recommended.
-
-Consumes space without helping day-to-day workflow.
-
-⸻
-
-Consistency Rules
-
-Use the same separator everywhere:
-
-·
-
-Examples:
-
-Photo ▼ · L53 · 38% · Search Ranking > Dataset Cleanup
-
-Tasks · L120 · 64%
-
-Focus ▼ · ✓ Sync
-
-Reason:
-
-Clean and visually lightweight.
-
-⸻
-
-Summary of Current Recommendation
-
-Org Files
-
-Photo ▼ · L53 · 38% · Search Ranking > Dataset Cleanup
-
-⸻
-
-Dashboard Agenda
-
-Dashboard
-
-⸻
-
-Tasks Agenda
-
-Tasks · L120 · 64%
-
-⸻
-
-Treemacs / File View
-
-Focus ▼ · ✓ Sync
-
-Possible sync states:
-
-✓ Sync
-↻ Syncing
-⚠ Sync Failed
-⊘ Sync Off
-
-⸻
-
-Open Questions
-
-Q1
-
-Should the filename ever be truncated?
-
-Current recommendation:
-
-No.
-
-Always preserve it.
-
-⸻
-
-Q2
-
-Should Dashboard show position information?
-
-Current recommendation:
-
-No.
-
-Dashboard is designed to be compact.
-
-⸻
-
-Q3
-
-Should Git sync status display a timestamp?
-
-Current recommendation:
-
-No.
-
-Keep status text only.
-
-Expose timestamp via tooltip, popup, or menu.
-
-⸻
-
-Q4
-
-Should heading navigation be implemented?
-
-Current recommendation:
-
-Not in version 1.
-
-Display heading context only.
-
-Add navigation later if needed.
+# Mode line
+
+A mode line that shows only what matters for planning: which document, where in
+it, and which section, and nothing an editor for programmers would show.
+
+**Status:** built
+**Code:** `lisp/ps-mode-line.el`; the file tree's line in `lisp/ps-file-tree.el`
+and `lisp/ps-git-sync.el`; the open-task count from `lisp/ps-task-count.el`;
+back and forward buttons from `lisp/ps-nav.el`. Settings block
+`** Mode line (ps-mode-line.el)`. User docs: `docs/Agenda.org` → "The mode
+line", and `docs/Files-and-navigation.org` → "The mode line outside your
+plans".
+
+## Problem
+
+Emacs's default mode line answers a programmer's questions: encoding, line
+endings, the git branch, the major mode and a list of minor-mode lighters. None
+of that means anything in a planning setup that edits Org files, reads an
+agenda and browses a file tree; the aim was something closer to Obsidian or a
+dedicated planning app.
+
+## Principles
+
+- **Every item must justify its space.** What is obvious or rarely needed goes.
+- **Don't repeat global state in every window.** Sync status is the same for the
+  whole vault, so it is shown once, in the file tree's mode line.
+- **Answer three questions**: which document am I in, where in it, and which
+  section.
+
+## The shapes
+
+```
+plan file     Inbox · 12 · 38% · Projects > Website > Launch checklist
+planning view Agenda ▾ · ⚠ 2 conflicts
+              Tasks ▾ · 64%
+anything else ~/notes/reading/index.md • · 14%
+file tree     Focus ▾ 📅 ✓ Sync
+```
+
+**Plan file**: name, open tasks, position, heading breadcrumb. **Planning
+view**: its name as a menu of views; the Agenda adds a clickable conflict count,
+Tasks its position. **Anything else**: the abbreviated path and an unsaved mark.
+**File tree**: the file-set selector, whether the set also filters the agenda
+(📅), and the sync state.
+
+## Decisions
+
+**A plan file is one the agenda scans** (`ps/org-files-in-scope-p`), not any Org
+buffer. The capture queue, this repository's documentation and `config.org` are
+Org too, but a task count and a heading path mean nothing there; what those need
+is to say which file they are, so they get the third shape with its path.
+
+**The file name drops `.org`**, in the mode line and the frame title alike: every
+plan is an Org file, so the extension says nothing. When two open files share a
+name, the folder is added in front (`Personal/Inbox`).
+
+**Position is a percentage only.** The line-number gutter already shows the line,
+and a column number has no use in a planning document.
+
+**The breadcrumb is heading titles only**: no keyword, priority, tags or
+cookies. When the line is too long, breadcrumb segments are shortened one at a
+time, longest first. The file name and position are never shortened.
+
+**No save mark for plan files.** They are saved automatically and reverted when
+they change on disk (see [data-safety.md](../foundations/data-safety.md)), as in
+Obsidian. Anything else, such as a Markdown note, gets `•` until it is written,
+because nothing saves it for you and an edit could otherwise sit unwritten with
+no sign of it.
+
+**No lighters, encoding, line endings, branch or read-only marker**, anywhere.
+
+**Views are named by purpose**: "Agenda", "Calendar · Week", "Tasks",
+"Situation · On foot", not Org's "Org Agenda" or "All". Every view title is
+clickable (`▾`) and opens the same menu of views as Productivity → Plan & Review
+(`ps/mode-line-view-menu-items`, the single definition both use). The Agenda
+shows no position, to stay compact; Tasks shows it, because that list gets long.
+
+**Sync state keeps its words.** "✓ Sync", "Syncing", "Sync Off", "Conflicted
+Copies", "Sync Retrying" and "Sync Failed" always carry a text label: icon-only
+states proved hard to remember. Only the problem states get a warning or error
+face. The last successful sync time is in the tooltip rather than on the line,
+where it would be noise.
+
+**One separator**, `·` (`ps/mode-line-separator`). Selectors use `▾`, without
+brackets, so the file tree's selector matches the view titles.
+
+**The frame title** is the buffer's short name; the Claude Code session shows as
+"Claude Code".
+
+**Mouse-2 and mouse-3 on the mode line do nothing.** By default they delete
+other windows or the window itself, which is easy to trigger by accident.
+
+## Constraints and traps
+
+- **Two mode lines coexist.** Plan files set the planning line buffer-locally;
+  everything else uses the *default* `mode-line-format`, set once rather than
+  per mode, because a list of modes is wrong the first time an unlisted one is
+  opened. Every deliberately styled buffer (agenda, file tree, Claude panel,
+  Availability, Conflicts) sets its own. The default is built from a constant,
+  so reloading the config cannot stack segments.
+- **Back and forward buttons go in both lines** (`ps/mode-line--with-nav`), or
+  they work in only half the frame, and they stay outside the per-window cache
+  below, which navigation does not invalidate.
+- **The plan-file line is cached per window**, keyed on the line, the buffer
+  name and the task-count generation. The name is in the key because `uniquify`
+  renames an open buffer when a second file of the same name opens; the
+  generation because the count updates from an idle timer without point moving.
+- **The generic line does no file I/O.** It runs in every window on every
+  redisplay, so it uses string operations only (`abbreviate-file-name`), and it
+  is wrapped in an error guard, since a failure there breaks every window.
+- **Counts are owned by the mode line and filled by other modules.** The mode
+  line declares the task count and conflict count variables;
+  `ps-task-count` and the conflict check fill them.
+
+## Rejected
+
+- **Save state for plan files** (above).
+- **A line number next to the percentage**, since the gutter shows it.
+- **An absolute or relative sync time on the line**, and **icon-only sync
+  states** (above).
+- **Brackets around selectors.** Cleaner without, and consistent with the view
+  titles.
+
+## Not built yet
+
+- **A file selector on the name**: clicking the file name would open a menu of
+  the vault's hierarchy, folders and files, replacing buffer cycling.
+- **Heading navigation**: clicking a breadcrumb segment would list its sibling
+  headings and jump to the one chosen.
