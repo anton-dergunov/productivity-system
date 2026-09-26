@@ -18,7 +18,8 @@ Emacs at this repo and at the bundled sample Org files:
 
 It uses =--init-directory= (Emacs 29+). On first run it seeds the first vault
 with =samples/realistic/= (through a =local.el=, which is read only until the
-vault list exists) and downloads packages into =elpa/= inside the repo. Background Git sync is disabled in this mode, so it never commits while you
+vault list exists) and downloads packages into =elpa/= inside the repo.
+Background Git sync is disabled in this mode, so it never commits while you
 test.
 
 If your Emacs isn't at the default path, override it:
@@ -40,14 +41,9 @@ with day to day, and it is the only one carrying the macOS freeze fix (see
 as one-off comparisons rather than something to work in.
 
 =default= expects a =/Applications/Emacs.app=, which this setup deliberately
-does not keep — having one there also shadows the patched build for the =emacs=
-command, since Homebrew's =emacs= is a wrapper script that prefers
-=/Applications/Emacs.app= over its own. That build additionally prints a startup
-warning on macOS: it ships its own copy of the =glib= libraries inside the
-bundle, and when Homebrew's copies are loaded as well, macOS reports a duplicate
-class ("=GNotificationCenterDelegate= is implemented in both..."). The warning is
-harmless, but the duplicate libraries it names are not something you want in the
-picture while debugging.
+does not keep: Homebrew's =emacs= command prefers it over its own build, so
+having one there silently shadows the patched Emacs. It also prints a harmless
+startup warning about =glib= classes implemented twice.
 
 ** Sandboxed runs
 Pass =--sandbox= to copy the repo (without =.git=) to a temp dir under =/tmp= and
@@ -118,10 +114,11 @@ The established pattern:
    place users tune defaults.
 4. Wire it up in the relevant =config.org= section, and add a menu/keybinding
    under =C-c p= if it's interactive.
-5. *Update the docs.* Per the project's change checklist, the affected
-   =docs/*.org= page(s) — including the "Under the hood / Customize" pointers —
-   and the README highlights (if user-visible) are updated as the last step of
-   the change.
+5. *Update the docs* as the last step: the affected =docs/*.org= page(s),
+   including their "Under the hood / Customize" pointers, and the README
+   highlights if the change is user-visible. Docs describe what a feature does
+   and where to change it; why it is built that way goes in the Commentary or a
+   design note.
 
 * Design notes
 Why the configuration is built the way it is — the decisions, the alternatives
