@@ -80,8 +80,9 @@ that =AGENTS.md= points at: =.claude/generated-context.md= in your Org directory
   opening all of them. Files with no =#+SUBTITLE:= are simply left out, so writing
   one is how you describe a file's purpose.
 
-It is rebuilt when Emacs starts, when you reload the configuration (=C-c p R=),
-and a couple of seconds after you save any plan file — so a subtitle you just
+It is rebuilt when Emacs starts, when you reload the configuration (=C-c p R=)
+or your workspace settings (=C-c p w=), when you switch vaults, and a couple of
+seconds after you save any plan file — so a subtitle you just
 edited, or a file you just created, shows up right away. =M-x ps/ai-context-sync=
 rebuilds it on demand. The file is rewritten only when something actually
 changed, and since it is regenerated from scratch every time, you can safely

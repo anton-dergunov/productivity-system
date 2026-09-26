@@ -1004,6 +1004,8 @@ loads it, then deletes it. Silently does nothing when the file is absent."
     ;; the (possibly edited) ps/context-tags and ps/situations.
     (when (fboundp 'ps/situations-apply) (ps/situations-apply))
     (when (fboundp 'ps/agenda-files-refresh) (ps/agenda-files-refresh))
+    ;; The AI context tables are derived from the same tags and situations.
+    (when (fboundp 'ps/ai-context-sync) (ps/ai-context-sync))
     (message "Workspace config reloaded"))
 
   ;; Snapshot the `* Settings' values of everything a vault may override, while
