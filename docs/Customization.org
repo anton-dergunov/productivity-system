@@ -67,9 +67,8 @@ Recommended values:
 | Nord        | package        | =nord=                                                                              |
 
 The config's own visual tweaks (faded DONE tasks, timestamp pills, metadata, the
-SCHEDULED/DEADLINE icons) adapt to the chosen theme automatically — the original
-hand-tuned greys are kept for Solarized, and every other theme gets
-theme-relative equivalents so it looks right on light /and/ dark backgrounds.
+SCHEDULED/DEADLINE icons) adapt to the chosen theme automatically, on light and
+dark backgrounds alike.
 
 ** Audition a theme live
 =M-x ps/preview-theme= (or =C-c p T=) loads any theme instantly so you can try
@@ -115,13 +114,6 @@ A few others — light:
 #+CAPTION: Gruvbox Dark
 [[file:../screenshots/gruvbox-dark-medium.png]]
 
-#+begin_quote
-Generate these locally with =scripts/screenshot_all_themes.sh= (or
-=scripts/screenshot_theme.sh <theme>=), which captures the agenda under each
-theme into =screenshots/=. macOS-only: it uses =screencapture=, so the terminal
-running it needs Screen Recording permission.
-#+end_quote
-
 * Fonts
 Fonts are set in =config.org= → /Settings → Fonts/, by *role* rather than one
 font at a time:
@@ -160,20 +152,14 @@ Sizes elsewhere follow =ps/font-size= automatically — headings, the line-numbe
 gutter, and the category icons all scale with it, so changing that one number
 resizes the whole interface.
 
-Emoji and symbol characters your font doesn't cover are drawn from other fonts,
-which can be slightly taller and make their line taller than the rest — so text
-appears to shift as those characters scroll past or animate.
-=ps/font-rescale-alist= scales those fallback fonts down so every line keeps the
-same height. If some character still sits taller, add its font to that list with
-a smaller factor. Those factors are tuned against a particular editing font, so
-they're worth a second look if you change =ps/font-mono=.
+Emoji and symbols your font doesn't cover come from other fonts, which can make
+their line slightly taller than the rest. =ps/font-rescale-alist= shrinks those
+fonts so every line keeps the same height; if a character still sits taller, add
+its font there with a smaller factor. Revisit it if you change =ps/font-mono=.
 
 ** Line spacing
-How much air a font wants between its lines is a property /of the font/: a
-condensed face with a tall x-height reads cramped at the leading a wider face is
-comfortable at. So =ps/font-line-spacing= is keyed by family rather than being a
-single global number, and switching fonts brings the right leading with it
-instead of needing a second adjustment afterwards:
+Different fonts want different space between lines, so =ps/font-line-spacing=
+is set per font family, and switching fonts brings the right spacing with it:
 
 #+begin_src elisp
 (setq ps/font-line-spacing '(("Menlo" . 0.2)))
@@ -260,10 +246,9 @@ Fonts (ps-fonts.el)/.
 
 * Reading width
 Plan files wrap edge-to-edge on a maximized window, which reads better centred
-in a column with margins — similar to Obsidian. This config does that with
-=visual-fill-column=: text is capped at a maximum width and centred; the
-margins shrink to zero once the window itself is narrower than that width, so
-nothing is lost on a split screen or a small frame.
+in a column with margins — similar to Obsidian. Text is capped at a maximum
+width and centred; the margins shrink to zero once the window itself is narrower
+than that width, so nothing is lost on a split screen or a small frame.
 
 Margins only apply to actual plan/prose files — the same ones the agenda
 scans — never to =config.org=, =workspace.org=, the journal/archive, or a
@@ -287,28 +272,21 @@ behind another application. Stock Emacs draws the region only in the window you
 are in, which makes a selection look like it was thrown away; it never was, and
 going back would show it again.
 
-One thing a selection deliberately does *not* change is the colour of a TODO or
-priority pill. Those are drawn with their colours inverted, which names no text
-colour at all — the label is painted in whatever background is behind it, so
-inside a selection its letters come out in the selection's own colour and
-vanish, while everything else on the line stays readable. Those two faces are
-rewritten with their colours stated plainly instead;
-=ps/selection-pinned-faces= is the list, so add a face to it if anything else
-washes out when you select it.
+TODO and priority pills keep their colours inside a selection too. If anything
+else washes out when you select it, add its face to =ps/selection-pinned-faces=.
 
-Both shades are derived from whichever theme you load, and re-derived when you
-change the theme, so there is nothing to re-tune after switching. To make a
-selection stronger or fainter, lower or raise =ps/selection-pale= (and
-=ps/selection-inactive-pale= for the unfocused one) in =config.org= → /Settings
-→ Selection/: 0.0 is the theme's own colour at full strength, 1.0 is invisible.
-The wash lands on a plain grey by default, because a washed colour keeps its
-hue and a faintly coloured highlight reads as a colour; =ps/selection-neutral=
-sets how much of that hue to drain, from 1.0 (grey) down to 0.0 (the theme's
-own tint).
-Set =ps/selection-show-inactive= to =nil= for stock Emacs behaviour,
-=ps/selection-dim-unfocused= to =nil= to keep one strength whether or not
-Emacs is in front, or =ps/selection-keep-foreground= to =t= to let the theme
-repaint the text inside a selection again.
+Both shades follow whichever theme you load, so there is nothing to re-tune
+after switching. In =config.org= → /Settings → Selection/:
+- =ps/selection-pale= and =ps/selection-inactive-pale= — how faint the selection
+  is (and the unfocused one): 0.0 is the theme's own colour at full strength,
+  1.0 is invisible;
+- =ps/selection-neutral= — from 1.0 (plain grey, the default) down to 0.0 (the
+  theme's own tint);
+- =ps/selection-show-inactive= — =nil= for stock Emacs behaviour;
+- =ps/selection-dim-unfocused= — =nil= to keep one strength whether or not Emacs
+  is in front;
+- =ps/selection-keep-foreground= — =t= to let the theme repaint the text inside
+  a selection again.
 
 One thing this cannot change: Emacs always keeps the cursor inside the window
 you are looking at, so scrolling far past an active selection drags its end
@@ -318,19 +296,30 @@ the lines even when the editor has let go of them.
 
 * Line numbers
 Line numbers show in file buffers and in the Tasks view. In Org buffers they are
-drawn smaller than the text and in a muted colour — the number on the line
-you're editing included, which a theme would otherwise paint in the full body
-text colour, making it the loudest thing on the page. The numbers stay readable
-without competing with the prose; code buffers keep the ordinary gutter. Adjust
-the size and the colour in =config.org= → /Settings → Line numbers/
-(=ps/line-numbers-scale=, =ps/line-numbers-face=); a scale of =1= leaves them at
-full size, and a face of =nil= leaves the colours alone.
+drawn smaller than the text and in a muted colour, the current line's number
+included, so they stay readable without competing with the prose; code buffers
+keep the ordinary gutter. Adjust the size and the colour in =config.org= →
+/Settings → Line numbers/ (=ps/line-numbers-scale=, =ps/line-numbers-face=); a
+scale of =1= leaves them at full size, and a face of =nil= leaves the colours
+alone.
 
-The gutter reserves at least two columns and widens by itself for a longer file.
-That minimum matters: sizing itself from scratch, the gutter grows and shrinks by
-a column as you scroll, which nudges the numbers and the text sideways. Change
-the minimum in =config.org= → /Editor & UI → Line numbers/, or set it to =nil=
-there to let Emacs size the gutter freely.
+The gutter keeps a minimum width of two columns, so text doesn't shift sideways
+as you scroll between short and long line numbers. Change the minimum in
+=config.org= → /Editor & UI → Line numbers/.
+
+* Scroll bar
+The native scroll bar is replaced by a thin pill at the right edge of each
+window, coloured to match your theme. Like the overlay scroll bars in macOS or
+VS Code, it appears while you scroll or when the mouse is over it, then fades
+away. Click anywhere along that edge to jump there. It shows in every window
+except the AI assistant's panel, which has no scroll position to show.
+Trackpad and mouse-wheel scrolling is smooth and pixel-precise.
+
+In =config.org= → /Settings → Scroll bars/ you can change how long it stays
+(=ps/scrollbar-hide-delay=), how quickly it fades (=ps/scrollbar-fade-duration=,
+=0= to hide it at once), its width (=ps/scrollbar-width=) and whether hovering
+reveals it (=ps/scrollbar-show-on-hover=). Set =ps/scrollbar-enabled= to =nil=
+there to get the native scroll bar back.
 
 * Category icons
 Icons in the agenda and file tree come from the *Material Symbols Outlined* font
@@ -393,11 +382,11 @@ icon maps use. Put it in your =workspace.org=:
 (setq ps/file-tree-order '(:rest "Current" "Vision"))
 #+end_src
 
-Treemacs always draws folders before loose files, so "bottom" means the bottom
-of the *folder* list: files sitting directly in your Org directory still come
-after every folder, whatever this says.
+Folders always come before loose files, so "bottom" means the bottom of the
+*folder* list: files sitting directly in your Org directory still come after
+every folder, whatever this says.
 
-** What the file sets hide
+** What the tree hides
 Two different lists decide what you see. =ps/file-tree-ignored-files= is about
 *display* — it hides =init.org=, =workspace.org=, =AGENTS.md=, =CLAUDE.md=,
 dotfiles and build artifacts from the tree. What the *agenda* reads is a
@@ -418,10 +407,8 @@ viewer (these pages), which always keeps markers hidden since you're not
 editing there.
 
 While you type the leading stars of a new heading, they show exactly as typed
-(=*=, =**=, =***=) — plain, never bold, and without disturbing the bullet on the
-next heading; the fancy bullet appears once the heading is complete (after the
-space). Typing an unterminated =*= in a heading's text likewise leaves the next
-heading's bullet intact until you close it.
+(=*=, =**=, =***=); the heading bullet appears once you type the space after
+them.
 
 * Where headline tags sit
 Tags appear exactly where you typed them. Whatever spacing stands between the
@@ -438,11 +425,7 @@ you set tags, and as you promote or demote it; that is switched off here, so
 your files keep the spacing you gave them.
 
 When a headline is too long for the window, the tags move to the next line
-*together* — the group is never split, and no stray coloured fragment is left
-behind at the right edge.
-
-One side effect of how that is done: a literal no-break space typed into an Org
-file is no longer highlighted the way Emacs highlights it elsewhere.
+*together*, and the group is never split.
 
 * Typo / spell checking
 Org buffers get a quiet, multilingual typo checker. A word is underlined with a
@@ -467,8 +450,6 @@ dictionary files (=<locale>.aff= / =<locale>.dic=) into
 If =enchant= isn't installed, the rest of the config still loads — typo checking
 just stays off.
 
-The design rationale is in =design/editing/typo-checker.md=.
-
 * Under the hood / Customize
 - Reading-width margins: =lisp/ps-prose-width.el= (uses the =visual-fill-column=
   package), wired in =config.org= → /Org Mode → Appearance → Reading width
@@ -487,6 +468,10 @@ The design rationale is in =design/editing/typo-checker.md=.
 - Line-number size and colour in Org buffers: =lisp/ps-line-numbers.el=, wired in
   =config.org= → /Editor & UI → Line numbers/; settings in =config.org= →
   /Settings → Line numbers/ (=ps/line-numbers-scale=, =ps/line-numbers-face=).
+- Scroll bar: =lisp/ps-scrollbar.el=; settings in =config.org= → /Settings →
+  Scroll bars/ (a few more =ps/scrollbar-...= options are listed there, and its
+  colour is the =ps/scrollbar-thumb= face). Smooth scrolling: =config.org= →
+  /Editor & UI → Smooth scrolling (ultra-scroll)/.
 - Live markup preview: the =org-appear= package plus =lisp/ps-appear.el= (which
   keeps the raw syntax up while you type in it), both wired in =config.org= →
   /Appearance → Show formatting markup only at point/. No settings.
@@ -500,5 +485,3 @@ The design rationale is in =design/editing/typo-checker.md=.
 - Headline tags kept whole when a line wraps: =lisp/ps-tags.el= (no settings);
   Org's own re-spacing is switched off in =config.org= → /Org Mode → Appearance/
   (=org-auto-align-tags=).
-- Org markup in agenda lines: =lisp/ps-emphasis.el=, used by
-  =ps-agenda-layout.el= and =ps-schedule-view.el= (no settings).

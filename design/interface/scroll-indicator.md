@@ -6,7 +6,7 @@ and fades when you stop, replacing a native scroll bar that can do neither.
 **Status:** built
 **Code:** `lisp/ps-scrollbar.el`; settings block `** Scroll bars
 (ps-scrollbar.el)`; wheel-event handling in `config.org` → `** Smooth scrolling
-(ultra-scroll)`. User docs: `docs/Scroll-bars.org`.
+(ultra-scroll)`. User docs: `docs/Customization.org` → Scroll bar.
 
 ## Problem
 
