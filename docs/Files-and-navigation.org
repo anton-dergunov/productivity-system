@@ -17,20 +17,18 @@ in the agenda.
 
 The tree shows the contents of your Org base directory directly — the directory
 itself is not named at the top. Files sitting at the top level are visible and
-subfolders nest to *any depth*. Top-level folders are drawn bold with a blank
-strip above each, so the tree still reads as sections. The strip belongs to
-neither neighbour, so the current-line highlight never bleeds into it. Note that folders are
-listed before loose files, so anything sitting at the top level appears at the
-bottom. Every folder gets an icon of its own, and you can give a particular
-folder its own icon — see [[file:Customization.org][Customization & appearance]].
+subfolders nest to *any depth*. Top-level folders are drawn bold with a little
+space above each, so the tree still reads as sections. Folders are listed before
+loose files, so anything sitting at the top level appears at the bottom. Every
+folder gets an icon, and you can give a particular folder its own — see
+[[file:Customization.org][Customization & appearance]]. Without the Material Symbols font, files fall back
+to simple folder/file icons (see [[file:Installation.org][Installation]]).
 
-The tree stays current on its own in the situations that matter most: it
-refreshes after a =git-sync= pull brings in anything, and it notices files and
-folders appearing or disappearing on disk — including a file added or removed
-from outside Emacs, say from Finder. Only folders you have expanded are
-watched, so a change deep inside a folder that is currently closed shows up
-the next time you open it. Use the manual refresh button below if the tree
-ever looks behind.
+The tree keeps itself current: it refreshes after a sync pulls anything in, and
+notices files and folders appearing or disappearing on disk, including from
+outside Emacs. A change inside a folder that is currently collapsed shows up the
+next time you expand it. Use the refresh button below if the tree ever looks
+behind.
 
 Config files that live beside your notes — =init.org=, =workspace.org=,
 =AGENTS.md=, =CLAUDE.md= — are hidden. That is a display choice only, separate
@@ -38,17 +36,11 @@ from what the agenda scans; both lists are described in
 [[file:Customization.org][Customization & appearance]].
 
 ** Following the file you're editing
-The tree highlights whichever file you are editing, so the two never disagree.
-It only ever moves the highlight: it never expands a folder, never re-roots, and
-never scrolls to somewhere you weren't looking. If what you're editing has no
-entry in the tree — it isn't a file, or it's hidden, filtered out by a file set,
-or inside a folder you collapsed — the highlight is *removed*, rather than left
-pointing at something you aren't editing. It reappears as soon as you click or
-move in the tree. Turn the whole thing off with
+The tree highlights whichever file you are editing, without expanding folders or
+scrolling on its own. If what you're editing isn't visible in the tree — hidden,
+filtered out by a file set, or inside a collapsed folder — there is no highlight
+until you click or move in the tree. Turn this off with
 =ps/file-tree-follow-current-file=.
-
-If the Material Symbols font isn't installed, files fall back to simple
-folder/file icons — see [[file:Installation.org][Installation]] and [[file:Customization.org][Customization & appearance]].
 
 ** Browse a file's outline in the tree
 The tree isn't just files and folders — you can drill into a file's *headings*
@@ -74,9 +66,7 @@ A *file set* is a named subset of your Org files — for example "Work" or
   *scopes the agenda* — when on, the agenda only includes tasks from the files
   in the current set. Turn it off to always see everything.
 
-While a set is active, folders it has emptied disappear too, rather than
-lingering with nothing under them. Under "All" — which filters nothing — a
-folder that is genuinely empty on disk still shows.
+While a set is active, folders with nothing in the set are hidden too.
 
 File sets are defined per Org folder in =workspace.org= — see
 [[file:Customization.org][Customization & appearance]].
@@ -93,21 +83,15 @@ into an expand button once it has. =M-+= and =M--= inside the tree do the same
 from the keyboard. Hide the button with =ps/file-tree-show-toggle-button=.
 
 * Refreshing the tree
-A second small button, just left of the collapse/expand button, fully
-re-renders the tree and re-applies the active file set's filters — a manual
-fallback alongside the automatic refresh described above, useful right after
-editing =workspace.org= or when you just want to be sure the tree matches
-disk. It has no keyboard equivalent; click it, or use Productivity → Layout &
-Navigation → Refresh File Tree.
+A second small button, just left of the collapse/expand button, redraws the
+tree from disk and re-applies the active file set — useful right after editing
+=workspace.org=. It is also in Productivity → Layout & Navigation → Refresh
+File Tree.
 
 * Resizing the tree
-Drag the divider along the tree's right edge to make it wider or narrower.
-
-That width then stays where you put it. Resizing the *Emacs window* — dragging
-its border, maximising it, going full screen — hands the space it gains or loses
-to whatever you are editing and leaves the tree at the width you chose, so the
-tree only ever changes width when you drag it yourself. Hiding the tree with
-=F8= and bringing it back reopens it at that same width.
+Drag the divider along the tree's right edge to make it wider or narrower. The
+tree keeps that width when you resize or maximise the Emacs window, and when you
+hide and show it again with =F8=.
 
 The width the tree first opens at is =treemacs-width= in =config.org=.
 
@@ -138,18 +122,12 @@ you there. Opening something new drops the forward trail, again as a browser
 does.
 
 Back is not the same as /up/: it retraces the places you actually opened, which
-after a few steps is not the folder above you. Going back never adds a window,
-however the one you are in was opened.
+after a few steps is not the folder above you.
 
-An arrow is dimmed when there is nothing that way; hovering names where a live
-one would take you, and says so when a dim one would take you nowhere. Each
-window has its own trail, so going back in one does not disturb the other, and
-the file tree and the Claude Code panel have none — a panel's buffer is the
-point of it.
-
-A trail is forgotten when the places in it stop meaning anything: switching
-vaults, or clearing the session with =M-x desktop-clear=. Both arrows go dim,
-rather than offering to jump into the folder you have just left.
+An arrow is dimmed when there is nothing that way; hover a live one to see where
+it leads. Each window has its own trail; the file tree and the Claude Code panel
+have none. Switching vaults, or clearing the session with =M-x desktop-clear=,
+forgets the trails.
 
 * Opening a file that is not a plan
 Emacs is used here for planning, so this configuration does not pretend to be
@@ -174,14 +152,9 @@ the table and for where to change it.
 * Browsing a folder
 Opening a folder (Productivity → Capture & Notes → Open Notes Folder, or any
 folder link) lists it as an icon, a size and a name — folders first, then
-files, and no =.DS_Store=. The =ls -l= columns are left out: permissions, link
-count, owner and group answer a question from 1971, and the one thing they did
-say usefully, file or folder, is now an icon rather than the colour of the
-name. Sizes are shown for files only, since a folder's own size says nothing
-about what is inside it.
-
-Press =(= for the full =ls= listing whenever you do want it, and again to go
-back.
+files, and no =.DS_Store=. Permissions, owner and the other =ls -l= columns are
+left out, and sizes are shown for files only. Press =(= for the full listing
+whenever you want it, and again to go back.
 
 Clicking a file opens it by the rules above; clicking a folder goes into it,
 reusing the same window rather than opening a new one each time.
@@ -195,19 +168,15 @@ once.
 The window title and the mode line name the file you are editing without its
 =.org= extension, so =Work.org= simply reads /Work/.
 
-When two open files share a name, that alone would be ambiguous, so the folder
-is put in front: open =Personal/Inbox.org= and =Work/Inbox.org= together and
-they read /Personal/Inbox/ and /Work/Inbox/. The prefix appears only while both
-are open — close one and the other goes back to plain /Inbox/. If the folder
-name is still not enough to tell them apart, as much of the path as it takes is
-shown.
+When two open files share a name, the folder is put in front: open
+=Personal/Inbox.org= and =Work/Inbox.org= together and they read
+/Personal/Inbox/ and /Work/Inbox/. Close one and the other goes back to plain
+/Inbox/.
 
 * The mode line outside your plans
-A short name works for a plan, which you know by name. It does not work for
-anything else: half a dozen captured items all call their notes =index.md=, and
-what you need to know is which one you are reading. So every file that is /not/
-part of your planning set names itself by its path instead, with =~= standing in
-for your home folder, followed by how far through it you are:
+Every file that is /not/ part of your planning set is named by its path instead
+(many captured notes are all called =index.md=), with =~= standing in for your
+home folder, followed by how far through it you are:
 
 : ~/info-triage-inbox/2026-08-16_167/index.md · 14%
 
@@ -234,46 +203,26 @@ gets one.
   (=counsel-projectile-rg=).
 
 * Under the hood / Customize
-- The file tree (built on =treemacs=) is =lisp/ps-file-tree.el=, with its icon
-  theme in =lisp/ps-file-tree-icons.el=. Its ignore list, layout
-  (=ps/file-tree-hide-root=, =ps/file-tree-top-level-spacing=,
-  =ps/file-tree-bold-top-level=, =ps/file-tree-root-mode=), file following
-  (=ps/file-tree-follow-current-file=) and file sets are in =config.org= →
-  /File Tree/ and in your =workspace.org=. Automatic refresh after a
-  =git-sync= pull is a call to =ps/file-tree-refresh= from
-  =lisp/ps-git-sync.el=; auto-refresh on disk changes is treemacs's built-in
-  =treemacs-filewatch-mode=, enabled in =config.org= → /=treemacs= file
-  tree/, with =ps/file-tree-node-lookup-setup= there teaching treemacs to
-  find a file's line by path, since the tree no longer spells the file name
-  out. =ps/file-tree-refresh= is also the manual full refresh behind the
-  header-line button.
-- To go back to the older shape — each top-level folder its own bold root — set
+- File tree: =lisp/ps-file-tree.el=, with its icons in
+  =lisp/ps-file-tree-icons.el=. Settings are in =config.org= → /Settings → File
+  Tree/ (layout, ignore list, =ps/file-tree-follow-current-file=), with your file
+  sets in =workspace.org=; the opening width is =treemacs-width= in =config.org=
+  → /=treemacs= file tree/.
+- To make each top-level folder its own bold root instead, set
   =ps/file-tree-root-mode= to ='subdirs=. Files sitting directly in the Org base
-  directory are then not shown anywhere, because treemacs cannot nest one
-  project inside another.
-- The icon-vs-name click behaviour is =ps/file-tree-click= /
-  =ps/file-tree--click-label= in =lisp/ps-file-tree.el=.
-- Holding the tree's width steady across Emacs-window resizes is
-  =ps/file-tree-width-setup= in =lisp/ps-file-tree.el=, called from
-  =config.org= → /=treemacs= file tree/ alongside =treemacs-width=, which sets
-  the width the tree first opens at.
+  directory are then not shown anywhere.
 - The split-toggle command is defined in =config.org= → /Keybindings & Menu/.
-- Back and forward are =lisp/ps-nav.el= (=ps/nav-history-limit= and the two
-  glyphs in =config.org= → /Settings/ → /Navigation history/); the face a
-  button takes under the mouse is =ps/nav-button-hover=. What opening a file of
-  a given kind does is =lisp/ps-open.el=, driven entirely by =ps/open-handlers=
-  in =config.org= → /Settings/ → /Opening files/. Folder browsing and the
-  Markdown reading view are =config.org= → /Browsing a folder/ and /Reading
-  Markdown/, with the listing's icons and sizes in =lisp/ps-dired.el=
-  (=ps/dired-decorate-listing=, =ps/dired-size-width=).
-- That one click follows a link — rather than two — is =ps/open-down-click= in
-  =lisp/ps-open.el=: the folder listing, a Markdown note and the capture queue
-  act on the press of the button rather than its release. =config.org= → /One
-  click follows a link/ covers the rest of Emacs.
-- The window title and mode line are =lisp/ps-mode-line.el=. A plan's short name
-  is built by =ps/mode-line--display-name= and everything else by
-  =ps/mode-line--generic-render=; =ps/mode-line-separator= sets the separator and
-  =ps/mode-line-modified-indicator= the unsaved marker, both in =config.org= →
-  /Settings/ → /Mode line/. How same-named files are told apart is Emacs's
-  =uniquify-buffer-name-style=, pinned in =config.org= → /Bootstrap → Load local
+- Back and forward: =lisp/ps-nav.el=; =ps/nav-history-limit= and the two glyphs
+  are in =config.org= → /Settings → Navigation history/, and the hover look is
+  the =ps/nav-button-hover= face.
+- Opening files: =lisp/ps-open.el=, driven entirely by =ps/open-handlers= in
+  =config.org= → /Settings → Opening files/. That a single click follows a link
+  is set in =config.org= → /One click follows a link/.
+- Folder listings: =lisp/ps-dired.el= (=ps/dired-decorate-listing=,
+  =ps/dired-size-width=), wired in =config.org= → /Browsing a folder/; the
+  Markdown reading view is =config.org= → /Reading Markdown/.
+- Window title and mode line: =lisp/ps-mode-line.el=; =ps/mode-line-separator=
+  and =ps/mode-line-modified-indicator= are in =config.org= → /Settings → Mode
+  line/. Same-named files are told apart by Emacs's
+  =uniquify-buffer-name-style=, set in =config.org= → /Bootstrap → Load local
   modules/.

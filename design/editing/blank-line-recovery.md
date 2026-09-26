@@ -8,7 +8,7 @@ the healthiest earlier version of the file in git.
 F7), `-tree.el` (representation), `-engine.el` (matching and resolution),
 `-git.el` (the only place git runs), `-review.el` (the only place files are
 written); settings block `** Blank line recovery (ps-blank-lines.el)`. User
-docs: `docs/Sync-and-backups.org` → "Recovering blank lines".
+docs: `docs/Recovering-blank-lines.org`.
 
 ## Problem
 

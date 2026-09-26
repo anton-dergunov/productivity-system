@@ -1,0 +1,128 @@
+#+TITLE: Recovering blank lines
+#+OPTIONS: toc:t
+#+STARTUP: inlineimages
+
+[[file:Index.org][↑ Back to the documentation index]]
+
+Beorg and Orgzly throw away the blank lines next to headings when they save an
+Org file — between a heading and the text under it, and between a section and
+the next heading. Blank lines inside a paragraph survive.
+
+Those blank lines are still in your git history, because the [[file:Sync-and-backups.org][automatic sync]]
+commits whatever arrives from Dropbox. =Recover blank lines from history= (=F7=,
+or Productivity → Edit Org) finds, for each file, the most recent version that
+still remembers its blank lines, and works out where they belong in the file as
+it is now. Headings are matched by their text and the notes under them, so a task
+you ticked off on your phone is still recognised as the same task, and a task you
+moved takes its spacing with it.
+
+The report lists each file, how many blank lines would come back, which version
+they came from, and the reason for every single one — whether it was remembered
+from that version, or worked out from how you space the rest of your files. Where
+there is nothing to go on, the file is left exactly as it is.
+
+* Accepting what it found
+Nothing is written until you say so. Most of the time you can decide straight
+from the report, without opening a diff at all:
+
+| Key | Action                                      |
+|-----+---------------------------------------------|
+| =1= | accept this file — put its blank lines back |
+| =2= | dismiss this file, leaving it alone         |
+| =A= | accept every file in the report             |
+| =n= | next file                                   |
+| =p= | previous file                               |
+| =g= | scan again                                  |
+| =+= | look one step further back in history       |
+| =-= | look one step less far back                 |
+| =c= | search back an exact number of commits      |
+| =y= | search back an exact number of days         |
+| =s= | switch how gaps with no history are handled |
+| =q= | close the report, and any diff it opened    |
+
+Each row shows the reason for every blank line it would restore, so =1= and =2=
+are decisions you can make from what is already on screen. Accepting marks the
+row =✓= and moves to the next, so a whole report can be worked through with
+=1= =1= =1=. The report stays where it is — nothing is re-scanned under you and
+you keep your place. Press =g= when you want it recomputed from disk, and =q=
+to close it and put your windows back as they were.
+
+** Gaps with no history
+Almost every blank line is copied from the older version of the file. A few
+gaps have no such memory: two headings that only became neighbours when you
+moved a task on your phone, or a heading you typed on the phone. Those are the
+*gaps with no history*, and the last line of the report says what happens to
+them. =s= switches between:
+
+- /worked out from your style/ — count how you space the rest of your files (a
+  blank line before every top-level heading, say) and apply that here.
+- /left alone/ — propose nothing, so only remembered spacing is ever restored.
+
+They are a handful of gaps per file and often none. The reason column tells you
+which is which: =edge= and =half= are remembered, =rule= is worked out.
+
+** How far back to look
+The last line of the header shows how much history is searched for a healthy
+version of each file — by default the last five commits touching it, and only
+those from the last day. That is usually enough, since a file damaged on the
+phone tends to arrive here as a single commit, and a wider search is slower.
+
+Widen it when a file shows /no changes/ but you know its blank lines were fine a
+while ago:
+
+- =+= and =-= step one rung at a time, from a single commit up to a thousand;
+  the commit and day limits move together.
+- =c= asks for an exact number of commits, and =y= for an exact number of days.
+  Answer =y= with =0= to drop the age limit altogether — then the commit count
+  alone decides, and the header reads /any age/.
+
+Either way the report is recomputed straight away.
+
+* Looking at a file side by side
+When you want to see a change in context, or take some of a file but not all of
+it, press =d= (or =RET=, or click the file name) on a row.
+
+Your file appears on the left as it stands now, and on the right the same file
+with its blank lines back. The diff opens where the file tree was, so the
+report keeps its place and its width; the tree comes back when you are done.
+
+Everything starts accepted, because these are blank lines you had — you are
+looking for the odd one you disagree with, not approving each one. Both sides
+are editable, so you can work from whichever end suits you:
+
+| Key | Action                                 |
+|-----+----------------------------------------|
+| =n= | next change                            |
+| =p= | previous change                        |
+| =b= | take this change into your file        |
+| =a= | drop this change from the proposal     |
+| =+= | accept every change                    |
+| =x= | drop every change                      |
+| =q= | done — keep what the review settled on |
+
+If you edited the left side by hand, that is what gets saved; otherwise the
+right side is. =+= and =x= reset both sides, so after either there is no
+question about which one you meant. Dropping everything leaves the file
+untouched rather than rewriting it with its own contents.
+
+Whatever you decide goes back into the report. Deciding a file there with =1=
+or =2= closes the diff and puts the windows back, since the comparison on
+screen has just been answered.
+
+* What it will not do
+A file is saved only if you accepted something in it, and only if what you
+accepted was blank lines. If a file changed since the scan — edited on another
+device mid-review, or open with unsaved changes — it is skipped rather than
+written, because the proposal describes the version that was scanned.
+
+Recovery will never change a character of your text. If a review somehow leaves
+one changed, saving takes an explicit confirmation.
+
+* Under the hood / Customize
+- =lisp/ps-blank-lines.el=; settings are in =config.org= → /Settings → Blank
+  line recovery/:
+  - =ps/blank-lines-unknown-spacing= — what happens at gaps with no history;
+  - =ps/blank-lines-match-floor= — how alike two headings must be to count as
+    the same one;
+  - the =ps/blank-lines-ancestor-...= limits and step ladder — how far back to
+    look.
