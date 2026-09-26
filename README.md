@@ -43,10 +43,8 @@ setup or borrow pieces for your own.
   headings and TODO pills keep their colours, and it stays visible in a paler
   shade when you move to another window.
 - **Blank-line recovery** — mobile Org apps throw away the blank lines you put
-  in your files. One command finds the last version that still had them, works
-  out where they belong in the file as it is now, and shows you what it would
-  restore and why. Accept a file with one key, or open it side by side to take
-  the changes one at a time — only what you accept is saved, and never a
+  in your files. One command puts them back from your Git history, shows you
+  what it would restore and why, and saves only what you accept — never a
   character of your text.
 - **Quiet quality-of-life touches** — multilingual typo checking, faded/folded
   DONE tasks, live-preview markup that hides `*`/`/`/`[[]]` until you edit it,
@@ -89,74 +87,12 @@ For the prettiest result, also install the **Material Symbols** icon font — se
 
 ### macOS: build Emacs with the freeze fix
 
-On macOS, Emacs 30 can freeze outright: the window stops accepting keyboard and
-mouse input and never recovers, so the only way out is Force Quit. Minimising
-the window while a background task is running is enough to trigger it — and this
-config's automatic Git sync counts, so it can happen several times a day.
-
-The bug is in Emacs itself, not in this configuration. Two patches fix it, and
-[emacs-plus](https://github.com/d12frosted/homebrew-emacs-plus) can build Emacs
-with both applied. You need **both** — the first one alone still leaves a
-window in which Emacs can freeze:
-
-- [`patches/emacs-30-ns-appdefined-windownumber.patch`](patches/emacs-30-ns-appdefined-windownumber.patch)
-  stops Emacs from addressing its own wake-up event to a window that does not
-  exist.
-- [`patches/emacs-30-ns-appdefined-retry.patch`](patches/emacs-30-ns-appdefined-retry.patch)
-  makes Emacs retry that wake-up, so a single lost one no longer hangs it
-  permanently.
-
-A third patch is optional and purely cosmetic:
-
-- [`patches/emacs-30-ns-resize-title.patch`](patches/emacs-30-ns-resize-title.patch)
-  keeps the window title alone while you drag a window edge, instead of
-  replacing it with the frame's size for the duration of the drag.
-
-```bash
-brew tap d12frosted/emacs-plus
-
-mkdir -p ~/.config/emacs-plus
-cat > ~/.config/emacs-plus/build.yml <<'YAML'
-patches:
-  - ns-appdefined-windownumber:
-      url: ~/.emacs.d/patches/emacs-30-ns-appdefined-windownumber.patch
-      sha256: 319013a5587df554f81ef07ee25d678dcc4d169349d938b4164673b71d340d58
-  - ns-appdefined-retry:
-      url: ~/.emacs.d/patches/emacs-30-ns-appdefined-retry.patch
-      sha256: 48c4577d5e49a74a40effe217cdd392bd30f6b5ca7139ef5e10cfa2c53a4c0fe
-  - ns-resize-title:
-      url: ~/.emacs.d/patches/emacs-30-ns-resize-title.patch
-      sha256: c37fc4260551c3f380d0a81603cf5302fd6611d3822dc0f2893002197f48e873
-YAML
-
-brew install --build-from-source d12frosted/emacs-plus/emacs-plus@30
-open -n /opt/homebrew/opt/emacs-plus@30/Emacs.app
-```
-
-`build.yml` is emacs-plus's own extension point, so the patches are re-applied
-automatically every time you rebuild.
-
-To confirm the Emacs you are running actually has both fixes:
-
-```bash
-EMACS=/opt/homebrew/opt/emacs-plus@30/Emacs.app/Contents/MacOS/Emacs
-lldb --batch -o "disassemble -n ns_send_appdefined" -o quit "$EMACS" | grep -c keyWindow
-lldb --batch -o "disassemble -n ns_read_socket_1"  -o quit "$EMACS" | grep -c scheduledTimer
-```
-
-Each command should print a non-zero count; `0` means that fix is not in.
-
-Two things worth knowing when you rebuild later:
-
-- **Use `brew uninstall` then `brew install`, not `brew reinstall`.** If the
-  final linking step fails — which it does when symlinks from an older Emacs are
-  still in `/opt/homebrew/bin` — `brew reinstall` quietly restores the previous
-  build, so you keep running an unpatched Emacs that looks freshly installed.
-- Homebrew builds with `-Os` (optimised for size). For `-O2` instead, add
-  `cflags << "-O2"` near the top of the `cflags` list in
-  `$(brew --repository)/Library/Taps/d12frosted/homebrew-emacs-plus/Formula/emacs-plus@30.rb`.
-  Homebrew emits its own flags first, so this one wins — but `brew update`
-  silently reverts the edit.
+On macOS, stock Emacs 30 can freeze outright — the window stops accepting input
+and only Force Quit gets you out — and this config's background Git sync makes
+it likely. The bug is in Emacs itself; two patches in [`patches/`](patches/) fix
+it, and [emacs-plus](https://github.com/d12frosted/homebrew-emacs-plus) builds
+Emacs with them applied. The recipe, and a check that the fix is in, are in
+[docs/Installation.org](docs/Installation.org).
 
 ## Documentation
 
@@ -178,6 +114,7 @@ Jump straight to:
   and settings
 - [AI integration (Claude Code)](docs/AI-integration.org) — the optional
   assistant and how to guide it with `AGENTS.md`
+- [Keybindings](docs/Keybindings.org) — every shortcut on one page
 - [Dropbox & Git together](docs/Dropbox-and-git.org) — keeping your notes in a
   cloud folder *and* in Git: the one setup step that stops the two from
   corrupting each other
