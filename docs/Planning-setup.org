@@ -55,7 +55,7 @@ The layout shipped in =samples/realistic/= is one reasonable shape:
 
 The directory is rescanned every time an agenda is built, so files you add,
 rename, move or delete show up (or disappear) on the next refresh — no restart
-needed, and no prompt about files that are no longer where they were.
+needed.
 
 To scan only part of the directory, or to skip more names, see the /Org files/
 block in =config.org= (=ps/org-files-root=, =ps/org-files-exclude-directories=,
@@ -124,12 +124,9 @@ sequence (kept to four characters so the agenda stays compact):
 | =MAYB=  | maybe / someday — not committed           |
 | =DONE=  | finished (drops out of the active agenda) |
 
-Three of these states drive what you see when you open the agenda: =INPR= fills
-its /In progress/ section, =NEXT= fills /Next up/, and priority =A= (below)
-fills /High-priority/. Between them they answer "what matters", "what am I in
-the middle of" and "what do I start next" — so deciding what to work on is a
-matter of keeping those three markers honest. Each task shows up in only one of
-the three sections, so nothing is listed twice.
+Three markers drive what you see when you open the agenda: =INPR= fills its /In
+progress/ section, =NEXT= fills /Next up/, and priority =A= (below) fills
+/High-priority/ — see [[file:Agenda.org][The Agenda]].
 
 Use =NEXT= for the few things you would genuinely pick up next, not for
 everything you intend to do eventually — that's what plain =TODO= is for.
@@ -188,15 +185,16 @@ Org files are outlines you can collapse and expand:
   detail. Press it a few times to get a feel for it.
 - =C-u C-u TAB= — reset the buffer to its startup folding.
 
-This config also fades and folds *DONE* tasks so finished work recedes visually
-— see [[file:Files-and-navigation.org][Files & navigation]] and [[file:Agenda.org][The Agenda]].
+Finished (=DONE=) tasks are faded so they recede. =C-c p d= folds every DONE
+task in the file out of the way, and =C-c p D= unfolds them again (also in
+Productivity → Edit Org).
 
 * Under the hood / Customize
 - The task keywords are defined once in =config.org= → /Org Mode → Agenda →
-  TODO keywords/ (=org-todo-keywords=). Change them there; nothing in the code
-  hardcodes the names. Keep each keyword ≤ 4 characters so the agenda pills stay
-  compact.
+  TODO keywords/ (=org-todo-keywords=). Change them there and everything else
+  follows. Keep each keyword ≤ 4 characters so the agenda pills stay compact.
 - The file scan lives in =lisp/ps-org-files.el= and is tuned in =config.org= →
   /Settings → Org files/ (=ps/org-files-root=,
-  =ps/org-files-exclude-directories=, =ps/org-files-exclude-files=). The agenda
-  applies it in =ps/agenda-files-refresh= in =config.org= → /Agenda files/.
+  =ps/org-files-exclude-directories=, =ps/org-files-exclude-files=).
+- DONE fading and folding: =lisp/ps-done.el=; the fade colour is
+  =ps/done-fade-color= in =config.org= → /Settings → Done tasks/.

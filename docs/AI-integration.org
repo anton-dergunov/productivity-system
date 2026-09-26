@@ -6,33 +6,24 @@
 
 An optional AI assistant runs in a side window and can read and edit your Org
 notes, with its proposed changes shown to you as Emacs diffs. It runs on your
-Claude Pro/Max subscription. This page is a brief overview; more detail will
-follow.
+Claude Pro/Max subscription.
 
 * Opening it
 Press =C-c c= to start or toggle the assistant (Productivity menu → /Claude
 Code — start/toggle/). =C-c c m= opens its menu, =C-c c s= stops the session.
 
-It opens in a stable side panel rather than taking over whatever you're
-editing — docked to the right when your Emacs window is wider than it is
-tall, or to the bottom when it's taller than wide (e.g. a window positioned
-on the narrow edge of an ultrawide monitor). The side is recomputed each time
-you open it, so it adapts if you've resized or moved the window since.
+It opens in a side panel rather than taking over whatever you're editing —
+docked to the right when your Emacs window is wider than it is tall, or to the
+bottom otherwise.
 
 * What it can see
 The assistant is aware of the file you are looking at and the text you have
-selected in your Org files — select a few lines and ask about "this", and it
-knows what you mean. It can also open files, show you diffs, and report Emacs
-diagnostics.
+selected in your Org files — select a few lines, click into the assistant's
+window, and ask about "this". It can also open files, show you diffs, and report
+Emacs diagnostics.
 
-The usual flow works as you would expect it to: select some lines, click into
-the assistant's window, and ask. What it receives is the file's name, the line
-numbers, and the selected lines themselves. Two details are worth knowing:
-
-- *It is sent once, not with every message.* Asking a follow-up without going
-  back to your file does not attach the same lines again — they are already
-  part of the conversation. Selecting something else and returning to the
-  assistant sends the new selection.
+- *A selection is sent once, not with every message.* A follow-up question
+  doesn't attach the same lines again; selecting something else does.
 - *Very large selections are not pasted in.* Past =ps/claude-selection-max-lines=
   (500) or =ps/claude-selection-max-chars= (20000), only the file is reported
   and the assistant reads it itself.
@@ -42,15 +33,8 @@ right after you start a session, so the first question can say "this file".
 
 * Reviewing proposed edits
 Changes the assistant wants to make are shown as an Emacs diff (Ediff) so you
-can step through them and accept or reject. Your mouse pointer is left where
-you put it — out of the box, Ediff physically moves the pointer to the corner
-of the frame when a diff closes, which is disabled here.
-
-To get the stock behaviour back, set =ediff-grab-mouse= to =t=.
-
-** Under the hood
-Settings block: =config.org= → /AI Assistant → Ediff: don't move the mouse
-pointer/ — =ediff-grab-mouse=.
+can step through them and accept or reject. Your mouse pointer stays where you
+put it when a diff closes.
 
 * Telling it how to work with your notes
 The assistant reads a file named =AGENTS.md= in your Org directory (with a tiny
@@ -72,9 +56,8 @@ that =AGENTS.md= points at: =.claude/generated-context.md= in your Org directory
   from what it happens to read.
 - *Your context tags and situations* — when you declare them (see
   [[file:Situations.org][Situations]]), two tables: what each tag promises, and which saved search each
-  one feeds. Generated from the same declaration the tag picker and the menus
-  use, so it cannot drift — and it means you never have to describe your tags a
-  second time in =AGENTS.md=.
+  one feeds, so you never have to describe your tags a second time in
+  =AGENTS.md=.
 - *An index of your plan files* — one line per file, taken from that file's
   =#+SUBTITLE:=. It lets the assistant route something to the right file without
   opening all of them. Files with no =#+SUBTITLE:= are simply left out, so writing
@@ -82,20 +65,13 @@ that =AGENTS.md= points at: =.claude/generated-context.md= in your Org directory
 
 It is rebuilt when Emacs starts, when you reload the configuration (=C-c p R=)
 or your workspace settings (=C-c p w=), when you switch vaults, and a couple of
-seconds after you save any plan file — so a subtitle you just
-edited, or a file you just created, shows up right away. =M-x ps/ai-context-sync=
-rebuilds it on demand. The file is rewritten only when something actually
-changed, and since it is regenerated from scratch every time, you can safely
-exclude it from version control.
+seconds after you save any plan file — so a subtitle you just edited, or a file
+you just created, shows up right away. =M-x ps/ai-context-sync= rebuilds it on
+demand. Since it is regenerated from scratch every time, you can safely exclude
+it from version control.
 
 Don't edit it: your changes are overwritten. Change =config.org= or the relevant
 file's =#+SUBTITLE:= instead.
-
-** Under the hood
-Module: =lisp/ps-ai-context.el=. Settings block: =config.org= → /Settings →
-AI context sync (ps-ai-context.el)/ — =ps/ai-context-enabled=,
-=ps/ai-context-file=, =ps/ai-context-next-keyword=,
-=ps/ai-context-save-debounce=.
 
 * Copying text from the assistant window
 The live session is an interactive terminal, so a normal mouse selection there
@@ -106,47 +82,33 @@ gets cleared as the assistant keeps drawing. Two reliable ways to copy:
   selection, scrolling back, and the Edit → Copy menu all work normally; press
   =C-c C-j= to return to the interactive view.
 
-* When a file was changed both on disk and by you
-If you edit a file in Emacs and something else (the assistant, Git sync, another
-program) also changes it on disk, Emacs will ask before discarding your edits.
-To compare your buffer against what is on disk, run =M-x ediff-current-file=
-(or =M-x diff-buffer-with-file= for a quick diff), then decide whether to keep
-your version or reload.
-
-This only applies when you have /unsaved/ edits. If the buffer matches what you
-last saved, it simply refreshes to the new content without asking — see
-[[file:Sync-and-backups.org][Sync & backups]].
+* When the assistant changes a file you are editing
+If the assistant edits a file you also have unsaved changes in, your version is
+never silently overwritten or discarded — see /When both sides changed/ in
+[[file:Sync-and-backups.org][Sync & backups]]. Without unsaved changes, the file simply refreshes to show the
+assistant's edit.
 
 * If the assistant window looks wrong after resizing
-The session window is a terminal, and resizing it makes the assistant redraw
-its whole display. If it ever ends up showing blank space, missing text at the
-top, or content that stops part-way down, resizing it again (or scrolling)
-redraws it correctly.
-
-Dragging the divider repaints the panel continuously, so it may flicker while
-you drag. =ps/claude-resize-throttle-interval= (in =config.org= → /Package
-Management → Claude Code/) controls how often it repaints mid-drag — raise it
-for less flicker, lower it for closer tracking as you drag.
-
-Lines in the panel are never wrapped: it is a terminal, and the assistant has
-already broken its output to fit the width. A few of the symbols it draws
-(the =⏺= bullet before each step, the =⎿= under it, the =⏵⏵= in the footer)
-have no monospace form in any installed font and are drawn a little wider than
-one character cell, so a line filling the full width can overhang the right
-edge by a few pixels. Those pixels are clipped. Letting them wrap instead used
-to cost a whole screen line each, which pushed the bottom of the panel out of
-sight and left blank bands and half-painted screens behind — the thing a
-manual resize appeared to "fix".
-
-** Under the hood
-Module: =lisp/ps-claude.el=. Settings block: =config.org= → /Settings → Claude
-Code (ps-claude.el)/ — =ps/claude-window-width=,
-=ps/claude-resize-debounce-delay=, =ps/claude-reanchor-delay=,
-=ps/claude-resize-throttle-interval=, =ps/claude-no-exit-prompt=,
-=ps/claude-selection-max-lines=, =ps/claude-selection-max-chars=,
-=ps/claude-selection-connect-delay=.
+The session window is a terminal, and resizing it makes the assistant redraw its
+whole display. If it ever ends up showing blank space or missing text, resizing
+it again (or scrolling) redraws it correctly. It may flicker while you drag the
+divider; =ps/claude-resize-throttle-interval= trades flicker for how closely the
+panel tracks the drag.
 
 * Quitting Emacs with a session running
-Emacs normally asks to confirm before killing running processes, which a live
-assistant session would trigger. It quits without asking instead; set
-=ps/claude-no-exit-prompt= to =nil= to get the confirmation back.
+Emacs quits without asking you to confirm killing a running assistant session;
+set =ps/claude-no-exit-prompt= to =nil= to get the confirmation back.
+
+* Under the hood / Customize
+- The panel: =lisp/ps-claude.el=; settings in =config.org= → /Settings → Claude
+  Code (ps-claude.el)/ — =ps/claude-window-width=,
+  =ps/claude-resize-debounce-delay=, =ps/claude-reanchor-delay=,
+  =ps/claude-resize-throttle-interval=, =ps/claude-no-exit-prompt=,
+  =ps/claude-selection-max-lines=, =ps/claude-selection-max-chars=,
+  =ps/claude-selection-connect-delay=.
+- The context file: =lisp/ps-ai-context.el=; settings in =config.org= →
+  /Settings → AI context sync (ps-ai-context.el)/ — =ps/ai-context-enabled=,
+  =ps/ai-context-file=, =ps/ai-context-next-keyword=,
+  =ps/ai-context-save-debounce=.
+- The mouse pointer during diffs: =config.org= → /AI Assistant → Ediff: don't
+  move the mouse pointer/; set =ediff-grab-mouse= to =t= for Emacs's default.

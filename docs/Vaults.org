@@ -47,7 +47,8 @@ Creating a vault writes three things into the folder and nothing else:
 
 - =workspace.org= — this vault's own settings, ready to edit (see below).
 - =Inbox.org= — a starter file with one task, so the agenda is not empty.
-- =.ps/state.el= — small machine-written state; you never edit this.
+- =.ps/state.el= — what the interface toggles in this vault (the active file
+  set, whether it restricts the agenda), written by Emacs; you never edit this.
 
 An existing folder full of Org files works as a vault as it is. Nothing is moved
 or rewritten; open it and it appears in the agenda and the tree.
@@ -72,11 +73,6 @@ it. Open it with =C-c p W= and reload with =C-c p w=.
 Because they are per vault, switching resets them: a category icon you defined
 in one vault does not follow you into the next, and neither do its tags or
 situations.
-
-Alongside =workspace.org= there is =.ps/state.el=, which Emacs writes itself. It
-remembers small things the interface toggles — the active file set, whether it
-also restricts the agenda — so each vault keeps its own. There is no reason to
-edit it by hand.
 
 * Git sync per vault
 Whether a vault syncs is *detected*, not configured: a vault syncs when its
