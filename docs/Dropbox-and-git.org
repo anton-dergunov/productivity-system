@@ -28,17 +28,10 @@ like any other folder, and when both machines have written to it (which they do
 constantly — every commit, every fetch), it does what it always does with a
 collision: it keeps both versions, naming one of them =conflicted copy=.
 
-Inside =.git= that is not a harmless extra file. Git treats every file under
-=.git/refs/heads/= as a branch, so a copy landing there becomes a branch
-literally named:
-
-#+begin_example
-main (Your Name's conflicted copy 2026-08-19)
-#+end_example
-
-and from that moment every Git command fails with =fatal: bad object=. Copies
-of the index, the reflog and the object store are quieter but worse — those can
-lose commits rather than announce themselves.
+Inside =.git= that is not a harmless extra file. A copy can become a branch
+literally named =main (Your Name's conflicted copy 2026-08-19)=, after which
+every Git command fails with =fatal: bad object=; other copies are quieter and
+can lose commits.
 
 * What it looks like when it happens
 - The sync indicator goes red and the sync log says
@@ -143,13 +136,9 @@ each machine, which Dropbox's own location often breaks —
 On each further machine, either move its =.git= aside the same way, or rebuild
 it from your remote.
 
-The pointer file names the repository directory itself, so the rebuilt
-repository has to sit exactly there — which is why it is created with
-=git init --bare=. A plain =git init= would put it one level lower, in
-=~/.gitrepos/notes-org/.git=, where the pointer would not find it. But =--bare=
-also records that the repository has no working tree, and this one does have
-one — your vault — so turn that back off. And a brand-new repository has no
-remotes at all: =origin= is a name you have to define before it means anything.
+To rebuild it, create the repository exactly at the path the pointer names
+(hence =--bare=; a plain =git init= would nest it one level lower), then tell Git
+it does have a working tree after all, and add your remote:
 
 #+begin_src bash
 mkdir -p ~/.gitrepos/notes-org
@@ -161,11 +150,10 @@ git fetch origin
 #+end_src
 
 Take the remote URL from a machine where the vault still works (=git remote -v=
-there) or from the repository's page on GitHub. Skip that line and
-=git fetch origin= reads the word =origin= as a URL, and says so:
-=fatal: 'origin' does not appear to be a git repository=. Skip =core.bare=
-instead and it is =git status= that fails later, with
-=this operation must be run in a work tree=.
+there) or from the repository's page on GitHub. Every line matters: without the
+=remote add=, the fetch fails with =fatal: 'origin' does not appear to be a git
+repository=; without =core.bare false=, =git status= later fails with =this
+operation must be run in a work tree=.
 
 Then point the vault at the history you just fetched:
 
@@ -229,18 +217,22 @@ the same time still produce a second file beside the original, named something
 like =Plans (Your Name's conflicted copy 2026-08-19).org=. That is a
 document-level collision, and it is the ordinary, recoverable kind.
 
-This config makes sure such a file can only ever be an inconvenience:
+Such a file is only an inconvenience:
 
-- It is *not* committed — the vault's =.gitignore= excludes the
-  =*conflicted copy*= pattern, so it never enters your history.
 - It is *not* scanned — the agenda ignores it, so it cannot show you a second
   copy of every task in it.
-- It *is* reported — after each sync the vault is checked, and the indicator
-  shows =⚠ Conflicted Copies= when any exist. Click it for the list.
+- It *is* reported — after each sync the indicator shows =⚠ Conflicted Copies=
+  when any exist. Click it for the list.
+- It is committed like any other file unless you tell Git not to. Add this line
+  to your vault's =.gitignore= to keep copies out of your history:
+
+  #+begin_example
+  *conflicted copy*
+  #+end_example
 
 Merge whatever you need out of the copy and delete it. If you would rather not
-be told, set =ps/git-sync-cloud-copy-regexp= to =nil= (see
-[[file:Customization.org][Customization]]).
+be told, set =ps/git-sync-cloud-copy-regexp= to =nil= in =config.org= →
+/Settings → Git sync/.
 
 * Avoiding them in the first place
 Nothing can prevent a collision between two machines that genuinely both wrote

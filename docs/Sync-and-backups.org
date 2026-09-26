@@ -68,12 +68,9 @@ pauses syncing and opens the sync log with instructions; resolve it (=C-x g=
 for Magit), then re-enable syncing.
 
 /Conflicted Copies/ (orange) is not a Git problem at all: the sync succeeded,
-but your vault contains files a cloud syncer left behind when two machines
-wrote the same file — =Plans (Your Name's conflicted copy 2026-08-19).org=.
-Click the indicator for the list. Such a file is never committed and never
-scanned by the agenda, so you can take your time over it; merge what you need
-and delete it. See [[file:Dropbox-and-git.org][Dropbox & Git together]], which also covers the one setup
-step that keeps a cloud folder away from the repository itself.
+but a cloud syncer left a second copy of a file two machines wrote at once —
+=Plans (Your Name's conflicted copy 2026-08-19).org=. Click the indicator for
+the list, then see [[file:Dropbox-and-git.org][Dropbox & Git together]] for what to do with it.
 
 Failures are reported *once*, as a single line at the bottom of the frame — a
 server outage lasting an hour interrupts you one time, not once a minute. The
@@ -131,13 +128,9 @@ Emacs keeps versioned backups and auto-save files in dedicated directories
 (outside your Org folders), so an accidental change or crash is recoverable.
 
 * Recovering blank lines lost to mobile edits
-Beorg and Orgzly throw away the blank lines in your Org files when they save
-them. Both read a heading as a title plus one block of text and trim the
-whitespace around that block, so every blank line next to a heading disappears —
-the ones between a heading and the text under it, and the ones separating a
-section from the next heading. Blank lines inside a paragraph survive. Beorg can
-put some back from its own settings, but only by a rule, and not where you
-actually had them.
+Beorg and Orgzly throw away the blank lines next to headings when they save an
+Org file — between a heading and the text under it, and between a section and
+the next heading. Blank lines inside a paragraph survive.
 
 Those blank lines are still in your git history, because the automatic sync
 commits whatever arrives from Dropbox. =Recover blank lines from history= (=F7=,
@@ -179,16 +172,11 @@ you keep your place. Press =g= when you want it recomputed from disk, and =q=
 to close it and put your windows back as they were.
 
 *** Gaps with no history
-Almost every blank line is copied from the older version of the file: it
-remembers that there was a blank line between /these two headings/, and that is
-what gets put back.
-
-A few gaps have no such memory. If you moved a task on your phone, the two
-headings that now sit next to each other were never neighbours in any version,
-so nothing remembers the spacing between them; the same goes for a heading you
-typed on the phone, which has never existed with its blank lines intact. Those
-are the *gaps with no history*, and the last line of the report says what
-happens to them. =s= switches between:
+Almost every blank line is copied from the older version of the file. A few
+gaps have no such memory: two headings that only became neighbours when you
+moved a task on your phone, or a heading you typed on the phone. Those are the
+*gaps with no history*, and the last line of the report says what happens to
+them. =s= switches between:
 
 - /worked out from your style/ — count how you space the rest of your files (a
   blank line before every top-level heading, say) and apply that here.
@@ -200,21 +188,14 @@ which is which: =edge= and =half= are remembered, =rule= is worked out.
 *** How far back to look
 The last line of the header shows how much history is searched for a healthy
 version of each file — by default the last five commits touching it, and only
-those from the last day.
-
-That is narrow on purpose. The phone writes the whole file once, when you leave
-its editor, so the damage arrives as a single commit; the automatic sync commits
-every minute on this side, and a file mangled on the phone is usually opened
-again here the same day or the next. Looking further back costs a scan that
-takes noticeably longer for versions that are no better.
+those from the last day. That is usually enough, since a file damaged on the
+phone tends to arrive here as a single commit, and a wider search is slower.
 
 Widen it when a file shows /no changes/ but you know its blank lines were fine a
 while ago:
 
-- =+= and =-= step one rung at a time, from a single commit up to a thousand.
-  Both limits move together, because git applies them together: raising just the
-  commit count would look like it does nothing whenever the day limit is the one
-  actually binding.
+- =+= and =-= step one rung at a time, from a single commit up to a thousand;
+  the commit and day limits move together.
 - =c= asks for an exact number of commits, and =y= for an exact number of days.
   Answer =y= with =0= to drop the age limit altogether — then the commit count
   alone decides, and the header reads /any age/.
@@ -262,32 +243,21 @@ Recovery will never change a character of your text. If a review somehow leaves
 one changed, saving takes an explicit confirmation.
 
 * Under the hood / Customize
-- Blank-line recovery: =lisp/ps-blank-lines.el= with =-tree=, =-engine=, =-git=
-  and =-review= alongside it; settings are in =config.org= → /Settings → Blank
-  line recovery/ (=ps/blank-lines-unknown-spacing= chooses what happens at gaps
+- Blank-line recovery: =lisp/ps-blank-lines.el=; settings are in =config.org= →
+  /Settings → Blank line recovery/ (=ps/blank-lines-unknown-spacing= chooses what happens at gaps
   history says nothing about, =ps/blank-lines-match-floor= how alike two
   headings must be to count as the same one, and the =ps/blank-lines-ancestor-...=
   limits and step ladder how far back to look).
 - Git sync: =lisp/ps-git-sync.el=; behavior is configured in =config.org= →
   /Settings → Git sync/ (=ps/git-sync-interval= and the stuck-sync
   =ps/git-sync-timeout=). Turn it off with the =PS_GIT_SYNC_DISABLE= env var or
-  =ps/git-sync-paused=. Failures are sorted into classes by
-  =ps/git-sync--failure-patterns=, which decides whether one shows as /Sync
-  Retrying/ or /Sync Failed/; =ps/git-sync-show-log= opens the log.
+  =ps/git-sync-paused=; =ps/git-sync-show-log= opens the log.
   =ps/git-sync-cloud-copy-regexp= (same settings block) is what a cloud
   syncer's leftovers look like; set it to =nil= to stop checking for them.
-  A vault whose =.git= points at a repository kept elsewhere (see
-  [[file:Dropbox-and-git.org][Dropbox & Git together]]) reports /the repository this vault points at is
-  missing/ on a machine where that repository was never created.
 - Saving Org buffers: =lisp/ps-org-save.el=; settings in =config.org= →
-  /Settings → Org saving/ (=ps/org-save-on-focus-loss-idle-threshold=). A
-  buffer whose file changed on disk under it is never saved over;
-  =ps/org-save-show-stale= opens the list.
+  /Settings → Org saving/ (=ps/org-save-on-focus-loss-idle-threshold=);
+  =ps/org-save-show-stale= opens the list of files out of sync.
 - Auto-save/revert, sessions, and backups: =config.org= → /Session & Backups/
-  and /Org Mode → Behavior → Auto-save .../. Reverts are driven by filesystem
-  notifications rather than polling; =lisp/ps-file-notify.el= keeps a
-  notification that arrives as a file is replaced (a Dropbox sync) from
-  reporting an error once the revert is already done. Nothing to configure.
+  and /Org Mode → Behavior → Auto-save .../.
 - Conflicted copies of your notes are kept out of the agenda by
-  =ps/org-files-exclude-files= (=config.org= → /Settings → Org files/) and out
-  of Git by your vault's own =.gitignore=. See [[file:Dropbox-and-git.org][Dropbox & Git together]].
+  =ps/org-files-exclude-files= (=config.org= → /Settings → Org files/).
