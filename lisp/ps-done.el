@@ -1,5 +1,28 @@
 ;;; ps-done.el --- Visual fading and folding of DONE org tasks -*- lexical-binding: t; -*-
 
+;;; Commentary:
+
+;; Finished work recedes: every DONE subtree is covered by a fade overlay in
+;; `ps/done-fade-color' (`auto' derives it from the theme's `shadow' face), and
+;; `ps/done-collapse' / `ps/done-expand' fold and unfold those subtrees.  The
+;; overlays are rebuilt after a state change, after a revert, and on a debounced
+;; idle timer after edits -- never on every keystroke.
+;;
+;; Two traps, both hit in practice:
+;;
+;; - The fade scan walks `org-outline-regexp-bol', never `org-heading-regexp'.
+;;   The latter makes the title optional, so a line holding a lone "*" -- what a
+;;   half-typed heading looks like -- matches it though Org does not consider it
+;;   a headline, and `org-get-todo-state' then signals "Before first headline"
+;;   in a file with no headline yet.
+;; - The idle rebuild (`ps/done--refade-now') demotes errors to a message.  It
+;;   fires while the user is typing, in whatever half-finished state the buffer
+;;   is in, and a cosmetic rebuild must never interrupt editing.
+;;
+;; Design: design/editing/org-display-fixes.md.
+
+;;; Code:
+
 (require 'org)
 
 ;; Bound dynamically by org during `org-after-todo-state-change-hook'.

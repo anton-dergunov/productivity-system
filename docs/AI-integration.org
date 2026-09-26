@@ -91,8 +91,8 @@ Don't edit it: your changes are overwritten. Change =config.org= or the relevant
 file's =#+SUBTITLE:= instead.
 
 ** Under the hood
-Module: =lisp/ps-ai-context.el=. Settings block: =config.org= → /Package
-Management → AI context sync (ps-ai-context.el)/ — =ps/ai-context-enabled=,
+Module: =lisp/ps-ai-context.el=. Settings block: =config.org= → /Settings →
+AI context sync (ps-ai-context.el)/ — =ps/ai-context-enabled=,
 =ps/ai-context-file=, =ps/ai-context-next-keyword=,
 =ps/ai-context-save-debounce=.
 
@@ -138,8 +138,8 @@ sight and left blank bands and half-painted screens behind — the thing a
 manual resize appeared to "fix".
 
 ** Under the hood
-Module: =lisp/ps-claude.el=. Settings block: =config.org= → /Package Management
-→ Claude Code (ps-claude.el)/ — =ps/claude-window-width=,
+Module: =lisp/ps-claude.el=. Settings block: =config.org= → /Settings → Claude
+Code (ps-claude.el)/ — =ps/claude-window-width=,
 =ps/claude-resize-debounce-delay=, =ps/claude-reanchor-delay=,
 =ps/claude-resize-throttle-interval=, =ps/claude-no-exit-prompt=,
 =ps/claude-selection-max-lines=, =ps/claude-selection-max-chars=,

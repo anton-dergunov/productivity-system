@@ -1,5 +1,49 @@
 ;;; ps-file-tree.el --- File tree sidebar (treemacs) helpers -*- lexical-binding: t; -*-
 
+;;; Commentary:
+
+;; The vault's folders and files in a treemacs side window, bent from a view of
+;; code projects into a navigator for notes: one project for the whole vault
+;; with its root line hidden, top-level folders as section headers, names shown
+;; without ".org" and with "_" as a space, file sets, an explicit order, and a
+;; highlight that follows the current file without ever expanding anything.
+;; Design and rationale: design/files-and-windows/file-tree.md.
+;;
+;; The width is pinned with `window-preserve-size', never `window-size-fixed': a
+;; preserved size holds through frame resizes, while a divider drag retries
+;; ignoring preserved sizes and so still works.  `window-size-fixed' (what
+;; treemacs's own width lock uses) blocks the drag outright.
+;;
+;; Four workarounds for treemacs, all load-bearing:
+;;
+;; 1. `ps/file-tree--decorate' re-applies the hidden root, the section gaps and
+;;    the bold headers after every render.  treemacs has no hide-root option and
+;;    reports expand/collapse through no hook, so the pass runs from several
+;;    hooks, a buffer-local `post-command-hook' and our own commands.  It
+;;    changes no characters, so it cannot trigger itself.
+;; 2. `ps/file-tree--follow' finds the current file with the *pure* lookup
+;;    `ps/file-tree--visible-node-position', never `treemacs-find-visible-node',
+;;    which falls back to expanding ancestors when a node's position is not
+;;    cached -- the usual case for a file.
+;; 3. `ps/file-tree-node-lookup-setup' advises `treemacs-find-file-node' to
+;;    match by `:path'.  The name transformer means a file's line no longer
+;;    spells its file name, so treemacs's text-search fallback fails and returns
+;;    nil, which its callers do not check: a shown file deleted from outside
+;;    Emacs killed the file-watch timer.  Keep the advice narrow -- it answers
+;;    only for nodes that are drawn, and leaves the rest (expanding to reveal)
+;;    to treemacs.
+;; 4. `ps/file-tree-annotations-setup' guards
+;;    `treemacs--apply-annotations-deferred', whose half-second timer holds a
+;;    buffer position that any re-render invalidates (a vault switch re-renders
+;;    several times), signalling (wrong-type-argument number-or-marker-p nil)
+;;    once per expanded node.
+;;
+;; Inside `window-size-change-functions', find the tree per frame
+;; (`ps/file-tree--frame-window'): `treemacs-get-local-window' consults the
+;; selected frame, and the hook can report another one.
+
+;;; Code:
+
 (require 'cl-lib)
 
 ;; Provided by treemacs; declared here so this file loads (and its pure
@@ -72,8 +116,9 @@ Each entry is (NAME . PLIST) where PLIST has:
              regardless of :include.
 Regexps are matched as substrings against the absolute path.
 
-This is purely a display filter for the file tree — it does not affect the
-agenda or any other part of the system, which continue to see every file.
+By default a set filters only the file tree's display; the agenda and the rest
+of the system still see every file.  With `ps/file-tree-set-applies-to-agenda'
+on, the active set also restricts the agenda, Conflicts and Availability.
 
 The first entry should remain (\"All\" . (:include nil :exclude nil)),
 showing everything. It is also used as the fallback set by

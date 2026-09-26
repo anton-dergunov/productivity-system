@@ -12,17 +12,23 @@
 ;; text (face-based badges using `org-modern' faces) and `(space :align-to COL)'
 ;; separators.  Category icons remain SVG images.  Because the column positions
 ;; are fixed (in character columns) and `:align-to' ignores the pixel width of
-;; preceding images, task titles line up across every section.  The buffer text
-;; and its line-start markers are never touched, so navigation (RET/TAB/bulk)
-;; keeps working.
+;; preceding images, task titles line up across every section.
 ;;
-;; The Schedule (time-grid) block is special and switchable via
-;; `ps/agenda-layout-schedule-style':
-;;   `grid'    — leave Org's native time ruler (familiar); only the list
-;;               sections are reformatted.
-;;   `compact' — hide the empty grid filler rows and lay timed events out with
-;;               the same columns as the other sections (so titles align
-;;               everywhere), with the time range as the right-hand badge.
+;; The line's text is deleted and the display string inserted in its place
+;; (`ps/agenda-layout--replace-line'), and org-agenda's navigation properties are
+;; then copied back across the whole new line, so RET/TAB/bulk actions and
+;; `org-get-at-bol' keep working anywhere on it.  `org-todo-regexp' and
+;; `org-not-done-regexp' are deliberately left out of that copy: `org-modern-agenda'
+;; is still on the finalize hook and would otherwise find the keywords again and
+;; restyle the badges already drawn.
+;;
+;; The Schedule (time-grid) block belongs to `ps-schedule-view' whenever
+;; `ps/schedule-view-override' is set, and this pass then skips it.  The
+;; `ps/agenda-layout-schedule-style' switch below (`grid' / `compact') is this
+;; module's own original treatment of that block, and takes effect only when the
+;; schedule view is not loaded.
+;;
+;; Design: design/planning/agenda-layout.md.
 
 ;;; Code:
 

@@ -50,7 +50,7 @@ missing optional dependency or a path that needs setting.
 * Startup fails or behaves oddly
 - Run from a *clean copy* to isolate the problem without risking your files or
   Git history: =./scripts/run_emacs_dev.sh --sandbox= (see [[file:Developing.org][Developing &
-  extending]]). If it works there, the issue is in your =local.el= or Org data.
+  extending]]). If it works there, the issue is in your settings or your Org data.
 - Launch with =emacs --debug-init= to get a backtrace on startup errors.
 
 * The mouse pointer jumps to the corner of the frame

@@ -16,9 +16,9 @@ Emacs at this repo and at the bundled sample Org files:
 ./scripts/run_emacs_dev.sh
 #+end_src
 
-It uses =--init-directory= (Emacs 29+), and on first run creates a =local.el=
-pointing at =samples/realistic/= and downloads packages into =elpa/= inside the
-repo. Background Git sync is disabled in this mode, so it never commits while you
+It uses =--init-directory= (Emacs 29+). On first run it seeds the first vault
+with =samples/realistic/= (through a =local.el=, which is read only until the
+vault list exists) and downloads packages into =elpa/= inside the repo. Background Git sync is disabled in this mode, so it never commits while you
 test.
 
 If your Emacs isn't at the default path, override it:
@@ -102,7 +102,9 @@ The established pattern:
 
 1. Create =lisp/ps-<feature>.el= with =ps/<feature>-...= functions (the =ps/=
    prefix plus the feature name — *don't* add =org-=) and a final =(provide
-   'ps-<feature>)=.
+   'ps-<feature>)=. Open it with a =;;; Commentary:= header recording the
+   load-bearing reasons: which upstream behaviour it works around and which
+   line must not be replaced, and why.
 2. Add =tests/test-ps-<feature>.el= (ERT; =(add-to-list 'load-path "lisp")=).
 3. If it has user-facing options, give them a settings block in =config.org= →
    /Settings/, directly after /Load Local Modules/ — that block is the single

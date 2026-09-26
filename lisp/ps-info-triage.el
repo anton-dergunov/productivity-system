@@ -1,7 +1,7 @@
 ;;; ps-info-triage.el --- Work the info-triage inbox from Emacs -*- lexical-binding: t; -*-
 
 ;;; Commentary:
-;; The daily loop for the `info-triage' project (https://github.com/, local at
+;; The daily loop for the separate `info-triage' project (checked out at
 ;; ~/projects/tools/info-triage): material forwarded to Telegram is extracted on
 ;; a NAS, `sync.sh' pulls it to ~/info-triage-inbox/ as one directory per item,
 ;; and two generated views describe them -- `triage.md' for the routing agent

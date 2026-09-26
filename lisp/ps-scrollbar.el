@@ -156,14 +156,12 @@ and drops to this much slower rate the rest of the time (which is most of
 the time).  A scroll re-escalates immediately via `window-scroll-functions',
 so scroll-reveal is not delayed by this.
 
-Beyond saving CPU, this bounds a real failure mode: every timer firing makes
-Emacs run a redisplay from `detect_input_pending_run_timers', which on the
-macOS NS build enters a nested AppKit event loop, and that loop very
-occasionally never exits -- wedging all of Emacs until it is restarted
-\(see design/interface/scroll-indicator.md).  The idle rate is therefore
-this module's standing exposure to that bug.  Raising it lowers exposure; the only cost is
-that hover-reveal can take up to this long to notice the pointer entering
-the track."
+Beyond saving CPU, a low rate matters on macOS: every timer firing makes
+Emacs run a redisplay, which on the NS build enters a nested AppKit event
+loop, and on an unpatched Emacs that loop can occasionally never exit (see
+design/platform/macos.md).  The only cost of a higher value is that
+hover-reveal can take up to this long to notice the pointer entering the
+track."
   :type 'number :group 'ps-scrollbar)
 
 (defcustom ps/scrollbar-exclude-modes '(treemacs-mode which-key-mode)
@@ -310,19 +308,13 @@ actually bound to it in the target window (`mwheel-scroll' or
 `pixel-scroll-precision', without hardcoding either).  Re-injecting EVENT via
 `unread-command-events' instead and letting Emacs's own command loop dispatch
 it was tried and made the real window's mode-line selection state get stuck
-wrong more often, so this drives the scroll directly and pins the selection
-itself instead."
+wrong more often, so this drives the scroll directly.  It does not select the
+target window: the scroll command reads its window from the rewritten event,
+and selecting would activate an inactive window's mode line."
   (interactive "e")
   (let ((target (frame-parameter (selected-frame) 'ps/scrollbar-window)))
     (when (and (window-live-p target) (consp event) (consp (nth 1 event)))
-      ;; Dispatching this command at all means Emacs already selected the
-      ;; pill's own window to look up its local map.  Select TARGET
-      ;; unconditionally and leave it selected -- it is in practice already
-      ;; the window the user is interacting with (the pill never steals
-      ;; OS-level keyboard focus), so this just pins down what would
-      ;; otherwise already be true, rather than relying on a temporary
-      ;; selection (e.g. via `with-selected-window') that reverts to
-      ;; whatever Emacs happened to select first, which is not reliable here.
+      ;; Rewrite the event to name the real window and dispatch it directly.
       (let ((inhibit-redisplay t))
         (setcar (nth 1 event) target)
         ;; Do NOT call (select-window target) here: the scroll command reads

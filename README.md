@@ -1,6 +1,6 @@
 # Org-mode planning system for Emacs
 
-[![Tests](https://github.com/anton-dergunov/emacs-gtd-config/actions/workflows/tests.yml/badge.svg)](https://github.com/anton-dergunov/emacs-gtd-config/actions/workflows/tests.yml)
+[![Tests](https://github.com/anton-dergunov/productivity-system/actions/workflows/tests.yml/badge.svg)](https://github.com/anton-dergunov/productivity-system/actions/workflows/tests.yml)
 
 A minimalist Emacs configuration for planning your work and life in plain-text
 [Org Mode](https://orgmode.org/) files. The workflow is inspired by
@@ -76,7 +76,7 @@ setup or borrow pieces for your own.
    macOS, read [the note below](#macos-build-emacs-with-the-freeze-fix) first.
 2. Clone this repo as your Emacs config directory:
    ```bash
-   git clone https://github.com/anton-dergunov/emacs-gtd-config.git ~/.emacs.d
+   git clone https://github.com/anton-dergunov/productivity-system.git ~/.emacs.d
    ```
    (On Windows this is usually `C:\Users\<USER>\AppData\Roaming\.emacs.d`.)
 3. Start Emacs. Packages download on first launch, then it offers to create a

@@ -13,8 +13,8 @@ what's relevant now. It isn't a strict implementation of the methodology; treat
 it as a calm, lightweight starting point you can shape to your own taste.
 
 * Your Org files
-Everything lives under the one base directory you set in =local.el=
-(=my-org-base-directory= — see [[file:Installation.org][Installation]]).
+Everything lives in the vault you have open — one folder of Org files (see
+[[file:Vaults.org][Vaults]]).
 
 *Every =.org= file under that directory feeds the agenda, at any depth.* There
 is no special folder you have to put tasks in — group your files however suits

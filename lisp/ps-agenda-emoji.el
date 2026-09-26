@@ -50,11 +50,6 @@ invalidates the on-disk cache so emojis are recomputed."
   :type 'string
   :group 'ps-agenda-emoji)
 
-(defcustom ps/agenda-emoji-right-margin 6
-  "Column, counted from the right window edge, where the emoji column starts."
-  :type 'integer
-  :group 'ps-agenda-emoji)
-
 (defcustom ps/agenda-emoji-face '(:height 0.8)
   "Face spec applied to the appended agenda emojis."
   :type 'sexp

@@ -59,10 +59,13 @@ Each task line is laid out in aligned columns so it scans cleanly:
 
 - a *category icon* for the file the task came from (e.g. a briefcase for
   =Work.org=) — see [[file:Customization.org][Customization & appearance]] to map your own;
-- the *category name*;
 - compact *pills* for the TODO state and priority;
-- the task text;
+- a small emoji hinting at what the task is about;
+- the task text, with its tags after it;
 - a right-aligned *date/time pill* for its schedule or deadline.
+
+The category can be shown as its name instead of, or as well as, the icon; set
+=ps/agenda-layout-category-display= in =config.org= → /Settings → Agenda layout/.
 
 =SCHEDULED= and =DEADLINE= labels are shown as small icons rather than words, to
 keep lines short. Finished (=DONE=) tasks are faded so they recede.
@@ -149,8 +152,8 @@ view; switching to Calendar or Tasks clears it.
 - The sections come from =org-super-agenda= and the custom command =c=, defined
   in =config.org= → /Org Mode → Agenda → Super agenda/. Edit the shared list
   =ps/agenda-day-super-groups= there to add, remove, or reorder sections; it also
-  feeds the [[file:Calendar.org][Calendar]]'s day view and the default styling of Org's stock agenda
-  (=C-c a= then =a=) and of clicking a date stamp in an Org file.
+  gives Org's stock agenda (=C-c a= then =a=) the same sections. Clicking a date
+  stamp in an Org file opens the [[file:Calendar.org][Calendar]] at that date.
 - The aligned layout, pills, category/schedule icons, emoji, and folding are the
   modules =lisp/ps-agenda-layout.el=, =ps-agenda-icons.el=,
   =ps-schedule-icons.el=, =ps-agenda-emoji.el=, and =ps-agenda-fold.el=; their
@@ -164,7 +167,7 @@ view; switching to Calendar or Tasks clears it.
 - The mode line is =lisp/ps-mode-line.el=; its separator is
   =ps/mode-line-separator= in =config.org= → /Mode line/, and which files get
   the planning shape is =ps/mode-line--plan-file-p=. The view-switcher
-  popup is =ps/mode-line--agenda-click=, in the same file.
+  popup is =ps/mode-line--view-click=, in the same file.
 - The task count is =lisp/ps-task-count.el=; =ps/task-count-idle-delay= in
   =config.org= → /Task count/ controls how long it waits after an edit before
   recomputing. Which files it applies to is the same set as the agenda — see

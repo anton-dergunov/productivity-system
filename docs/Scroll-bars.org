@@ -27,8 +27,10 @@ your colour theme.
 - *Calm and theme-aware.* It is a soft, muted pill that takes its colour from
   your theme, so it never looks harsh — unlike the native macOS bar, which is
   always a hard, dark stripe that can't be recoloured or hidden.
-- *Everywhere.* It works in all windows — Org files, =*Messages*=, the Claude
-  Code terminal, and any split.
+- *Almost everywhere.* It works in Org files, =*Messages*=, terminals and any
+  split. The one exception is the AI assistant's panel: the assistant redraws
+  its screen in place and never tells Emacs how far it has scrolled, so there is
+  no position to show.
 - *Backs off when idle.* The indicator only does continuous work while
   something is actually happening — while you scroll, and while the pill is on
   screen or fading. The rest of the time it idles at a much slower rate, and a

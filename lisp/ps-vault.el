@@ -10,7 +10,7 @@
 ;;
 ;; It is deliberately dependency-free (cl-lib/seq/subr-x only), because
 ;; `config.org' requires it at the very top of Bootstrap -- before packages are
-;; initialised and before the other 37 modules are on `load-path'.  That is also
+;; initialised and before the other modules are on `load-path'.  That is also
 ;; what keeps it testable under `emacs -Q --batch'.
 ;;
 ;; Two files hold state, and both are read as *data* with `read', never `load'ed:

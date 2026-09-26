@@ -556,11 +556,11 @@ hover-reveal can take up to that long to notice the pointer). Losing OS focus
 are fully uninstalled too (reinstalled transparently on focus gain), so nothing in
 this module runs at all during a long idle stretch.
 
-To disable the custom scrollbar entirely (revert to native bars), set
-=ps/scrollbar-enabled= to =nil= in =local.el=.
+To disable the custom scrollbar entirely (revert to native bars), change
+=ps/scrollbar-enabled= below to =nil=.
 #+begin_src emacs-lisp
   (defvar ps/scrollbar-enabled t
-    "Set to nil in local.el to disable the custom scrollbar entirely.")
+    "Nil disables the custom scrollbar entirely, reverting to native bars.")
 
   (setq ps/scrollbar-width             6
         ps/scrollbar-fringe-width     14
@@ -787,8 +787,8 @@ warm agenda render reuses cached emojis and never spawns Python.
 Set =ps/agenda-emoji-enabled= to nil to turn the agenda emojis off entirely.
 =cache-tag= identifies the model/threshold the cache was built for: bump it
 (and, if you like, set =EMOJI_MODEL= / =EMOJI_THRESHOLD= for the script) to
-invalidate the cache after changing the matcher. =right-margin= is how many
-columns from the right window edge the emoji column starts.
+invalidate the cache after changing the matcher. The emoji is drawn in its own
+reserved column by the agenda layout below (=ps/agenda-layout-emoji-cols=).
 #+begin_src emacs-lisp
   (setq ps/agenda-emoji-enabled      t   ; set to nil to disable agenda emojis
         ps/agenda-emoji-matcher-path
@@ -797,7 +797,6 @@ columns from the right window edge the emoji column starts.
         (expand-file-name "emoji_matcher/task_cache.json"
                           (expand-file-name ".cache" "~"))
         ps/agenda-emoji-cache-tag    "bge-small-en-v1.5@0.50"
-        ps/agenda-emoji-right-margin 3
         ;; Emoji fonts are already scaled to the text line box by
         ;; `ps/font-rescale-alist', so no extra shrink is needed here.
         ps/agenda-emoji-face         '(:height 1.0))
@@ -805,22 +804,25 @@ columns from the right window edge the emoji column starts.
 
 ** Agenda layout (ps-agenda-layout.el)
 The agenda task lines are re-laid into aligned columns:
-=[category] [STATE] [PRIORITY] [emoji]  Title… [tags]   [when]=. State, priority
-and the relative date ("11d ago") are drawn as rounded pill badges; titles line
-up across every section and are truncated (full text shown on hover) when they
-would overflow.
+=[category] [STATE] [PRIORITY] [emoji]  Title… [tags]   [when]=. State, priority,
+tags and the relative date ("11d ago") are drawn as =org-modern= badges; titles
+line up across every section and are truncated (full text shown on hover) when
+they would overflow.
 
 - =category-display=: =icon= (default), =name=, =both=, or =none=.
-- =schedule-style=: =grid= keeps Org's native time ruler; =compact= hides the
-  empty grid rows and lays timed events out like the other sections. Switch and
-  press =g= in the agenda to compare.
+- =schedule-style=: =grid= or =compact=, this module's own treatment of the
+  Schedule block. It has no effect while the schedule view below is loaded,
+  which draws that block itself (Timeline or Events).
 - =state-labels=: remap a keyword to a shorter label, e.g. ="WAIT" → "W"= (the
   actual TODO keyword is unchanged). Rarely needed now that all keywords are ≤4
   chars. Empty = show keywords verbatim.
-- =state-cols= is auto-computed from the longest keyword + 2 padding spaces when
-  left at =nil=; set to an integer to override. =priority-cols= is =4= (covers
-  =" #A "=). State and priority badges use =org-modern= faces, so their colours
-  follow the active theme automatically — no per-theme colour overrides needed.
+- =state-cols= is auto-computed when left at =nil=: on a graphical frame it is
+  the measured width of the widest keyword badge, so every gap is one space; set
+  an integer to override. The priority column is measured the same way (the
+  badge reads =" A "=) and collapses when nothing in view has a priority;
+  =priority-cols= is only the fallback for a text terminal. The badges use
+  =org-modern= faces, so their colours follow the active theme — no per-theme
+  colour overrides needed.
 #+begin_src emacs-lisp
   (setq ps/agenda-layout-enabled        t
         ps/agenda-layout-category-display 'icon   ; icon | name | both | none
@@ -1107,7 +1109,7 @@ nil leaves the colours alone.
   (tool-bar-mode -1)
 
   ;; Custom fringe scrollbars (ps-scrollbar.el).
-  ;; Set ps/scrollbar-enabled nil in local.el to revert to native bars.
+  ;; Set ps/scrollbar-enabled to nil (Settings -> Scroll bars) for native bars.
   (if ps/scrollbar-enabled
       (progn
         (scroll-bar-mode -1)

@@ -132,7 +132,7 @@ sudo apt install ripgrep
 Clone this repository as your Emacs configuration directory:
 
 #+begin_src bash
-git clone https://github.com/anton-dergunov/emacs-gtd-config.git ~/.emacs.d
+git clone https://github.com/anton-dergunov/productivity-system.git ~/.emacs.d
 #+end_src
 
 On Windows the directory is usually
@@ -217,8 +217,9 @@ stays off. Full details, including which languages are enabled and how to add
 dictionaries, are in [[file:Customization.org][Customization & appearance]].
 
 * Under the hood / Customize
-- The base directory and module loading happen in =config.org= ("Bootstrap"
-  section) via =local.el=.
+- Opening the vault and loading the modules happen in =config.org= ("Bootstrap"
+  section); the list of vaults is =vaults.eld= in the config directory (see
+  [[file:Vaults.org][Vaults]]).
 - The macOS freeze fix is =patches/emacs-30-ns-appdefined-windownumber.patch=
   plus =patches/emacs-30-ns-appdefined-retry.patch=; their headers record the
   full diagnosis. They are applied at build time through

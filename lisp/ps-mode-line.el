@@ -395,8 +395,8 @@ the frame, so an error inside it is a configuration that looks broken
 everywhere rather than in one kind of buffer.
 
 Does no file I/O by design -- `abbreviate-file-name' is string work.  A `stat'
-per window per redisplay over a synchronised folder is the freeze this
-configuration already has a log for."
+per window per redisplay over a cloud-synchronised folder could stall every
+redisplay on a slow mount."
   (condition-case nil
       (let* ((sep ps/mode-line-separator)
              (marker (ps/mode-line--modified-marker))

@@ -275,4 +275,5 @@ gets one.
   =ps/mode-line--generic-render=; =ps/mode-line-separator= sets the separator and
   =ps/mode-line-modified-indicator= the unsaved marker, both in =config.org= →
   /Settings/ → /Mode line/. How same-named files are told apart is Emacs's
-  =uniquify-buffer-name-style=, pinned in =config.org= → /Package Management/.
+  =uniquify-buffer-name-style=, pinned in =config.org= → /Bootstrap → Load local
+  modules/.
