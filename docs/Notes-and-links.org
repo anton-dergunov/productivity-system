@@ -30,7 +30,7 @@ in Obsidian, and display nicely inside Emacs:
   note.
 
 Click the rendered link (the pencil icon + title) to open the note directly
-in Obsidian — a single click, with no effect on the surrounding text.
+in Obsidian.
 
 * Plain Org links
 For everything else, Org's own linking still applies:
@@ -40,7 +40,6 @@ For everything else, Org's own linking still applies:
 - =C-c C-o= — open the link at point.
 
 * Under the hood / Customize
-- The async URL→title command and the Obsidian link type live in
-  =lisp/ps-links.el= (with title helpers in =lisp/ps-utils.el=).
+- The web-link command and the Obsidian link type live in =lisp/ps-links.el=.
 - The maximum fetched-title length is =ps/org-link-title-max-length= in
   =config.org= → /Links/.

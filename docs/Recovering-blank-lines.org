@@ -9,7 +9,7 @@ Org file — between a heading and the text under it, and between a section and
 the next heading. Blank lines inside a paragraph survive.
 
 Those blank lines are still in your git history, because the [[file:Sync-and-backups.org][automatic sync]]
-commits whatever arrives from Dropbox. =Recover blank lines from history= (=F7=,
+commits whatever arrives from Dropbox. =Recover blank lines from history= (=F7= or =C-c p r=,
 or Productivity → Edit Org) finds, for each file, the most recent version that
 still remembers its blank lines, and works out where they belong in the file as
 it is now. Headings are matched by their text and the notes under them, so a task

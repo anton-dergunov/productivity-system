@@ -9,7 +9,7 @@ notes, with its proposed changes shown to you as Emacs diffs. It runs on your
 Claude Pro/Max subscription.
 
 * Opening it
-Press =C-c c= to start or toggle the assistant (Productivity menu → /Claude
+Press =C-c c c= to start or toggle the assistant (Productivity menu → /Claude
 Code — start/toggle/). =C-c c m= opens its menu, =C-c c s= stops the session.
 
 It opens in a side panel rather than taking over whatever you're editing —

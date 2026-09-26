@@ -42,6 +42,41 @@ The key after =C-c p S= is the situation's own =:key= — the set is yours, so s
 | =C-c p o= / =F4= | =ps/insert-obsidian-link-from-clipboard= | Obsidian link (clipboard) |
 | =C-c p O= / =F5= | =ps/insert-obsidian-link-prompt=         | Obsidian link (prompt)    |
 
+* Edit Org
+| Key              | Command                  | Action                               |
+|------------------+--------------------------+--------------------------------------|
+| =C-c p d=        | =ps/done-collapse=       | fold every DONE task in the file     |
+| =C-c p D=        | =ps/done-expand=         | unfold them again                    |
+| =C-c p r= / =F7= | =ps/blank-lines-recover= | recover blank lines from history     |
+| =C-c p t=        | =ps/shift-timezone=      | shift timestamps to another timezone |
+
+* Files & navigation
+| Key           | Command                             | Action                             |
+|---------------+-------------------------------------+------------------------------------|
+| =F8=          | =ps/file-tree-toggle=               | show / hide the file tree          |
+| =C-c p F=     | =ps/file-tree-cycle-file-set=       | cycle the file set                 |
+| =C-c p g=     | =ps/file-tree-toggle-agenda-filter= | file set also restricts the agenda |
+| =C-c p f=     | =recentf-open-files=                | open a recent file                 |
+| =C-c p i=     | =imenu=                             | jump to a heading by name          |
+| =s-r=         | =counsel-projectile-rg=             | search the whole project           |
+| =C-c <left>=  | =ps/nav-back=                       | back to the previous place         |
+| =C-c <right>= | =ps/nav-forward=                    | forward again                      |
+| =C-c p 1=     | =delete-other-windows=              | keep only the current window       |
+
+=C-c p |= (also =C-x |=, =ps/window-split-toggle=) flips a split between
+horizontal and vertical.
+
+In a folder listing, =^= goes up to the parent (so does clicking =..=), and =(=
+shows the full =ls= details. In a Markdown file, =C-c |= stops lines wrapping,
+for a table too wide to fit. In a rendered web page, =R= shows just the article
+and =&= reopens it in your real browser. See [[file:Files-and-navigation.org][Files & navigation]].
+
+* Sync
+| Key       | Command              | Action                  |
+|-----------+----------------------+-------------------------|
+| =C-c p s= | =ps/git-sync-toggle= | pause / resume Git sync |
+| =C-x g=   | =magit-status=       | open Magit              |
+
 * Vaults
 | Key         | Command                  | Action                        |
 |-------------+--------------------------+-------------------------------|
@@ -66,23 +101,26 @@ mouse. See [[file:Vaults.org][Vaults]].
 | =C-c p U=             | =ps/font-cycle-ui=                 | next file tree font           |
 | =C-c p h=             | =ps/help-open-doc=                 | open this documentation       |
 
+* AI assistant
+| Key       | Command                            | Action                       |
+|-----------+------------------------------------+------------------------------|
+| =C-c c c= | =claude-code-ide=                  | start / toggle the assistant |
+| =C-c c m= | =claude-code-ide-menu=             | the assistant's menu         |
+| =C-c c b= | =claude-code-ide-switch-to-buffer= | go to the session window     |
+| =C-c c s= | =claude-code-ide-stop=             | stop the session             |
+
+See [[file:AI-integration.org][AI integration]].
+
 * Info triage
 Only useful with the optional capture inbox — see [[file:Info-triage.org][Info triage]].
 
-| Key             | Command                  | Action                      |
-|-----------------+--------------------------+-----------------------------|
-| =C-c p I=       | =ps/info-triage-open=    | open the capture queue      |
-| =C-c <left>=    | =ps/nav-back=            | back to the previous place  |
-| =C-c <right>=   | =ps/nav-forward=         | forward again               |
+| Key       | Command               | Action                 |
+|-----------+-----------------------+------------------------|
+| =C-c p I= | =ps/info-triage-open= | open the capture queue |
 
 Inside the queue itself, single keys: =RET= follow, =n= / =p= next / previous
-item, =d= drop the item at point, =s= sync, =g= renumber, =e= open the folder
-outside Emacs, =b= / =f= back / forward, =q= put it away.
-
-In a folder listing, =^= goes up to the parent (so does clicking =..=), and =(=
-shows the full =ls= details. In a Markdown file, =C-c |= stops lines wrapping,
-for a table too wide to fit. In a rendered web page, =R= shows just the article
-and =&= reopens it in your real browser.
+item, =d= drop the item at point, =s= sync, =g= rebuild the list, =e= open the
+folder outside Emacs, =b= / =f= back / forward, =q= put it away.
 
 * Org task editing (in an Org file)
 | Key             | Action                                    |
