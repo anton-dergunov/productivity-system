@@ -55,8 +55,8 @@ the agenda layout, schedule view, availability, conflicts, file tree, git sync,
 and so on) — see [[file:Developing.org][Developing & extending]].
 
 * Requirements
-- *Emacs 29 or newer* (the config and its dev tooling use recent features such
-  as =--init-directory=).
+- *Emacs 29 or newer*; on macOS, the patched build described in
+  [[file:Installation.org][Installation]].
 - Optional: the *Material Symbols Outlined* font (for category icons) and the
   *enchant* library plus dictionaries (for typo checking). Both are covered in
   [[file:Installation.org][Installation]]; everything still loads without them.

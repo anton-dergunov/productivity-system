@@ -8,8 +8,7 @@ This page walks through a full setup on macOS, Linux, and Windows. For a
 two-minute version, see the [[file:../README.md][README]].
 
 * 1. Install Emacs
-Install [[https://www.gnu.org/software/emacs/download.html][Emacs]] — version 29 or newer is recommended (this config uses
-=--init-directory= and other recent features).
+Install [[https://www.gnu.org/software/emacs/download.html][Emacs]], version 29 or newer.
 
 - *macOS:* see the next section — a stock build freezes; build a patched one
   instead.
@@ -26,21 +25,13 @@ day, and every freeze costs you the session.
 
 The bug is in Emacs itself, not in this configuration. It affects every stock
 macOS build, including [[https://emacsformacosx.com/][emacsformacosx.com]] and =brew install --cask emacs=. The
-fix is two files in this repository, and you need both — the first on its own
-still leaves a window in which Emacs can freeze:
-
-- =patches/emacs-30-ns-appdefined-windownumber.patch= stops Emacs from
-  addressing its own wake-up event to a window that does not exist.
-- =patches/emacs-30-ns-appdefined-retry.patch= makes Emacs retry that wake-up,
-  so a single lost one no longer hangs it permanently. Losing one turns out to
-  be possible even when the window is valid — for instance while a second frame
-  is taking focus.
+fix is two patches in this repository, and you need both:
+=patches/emacs-30-ns-appdefined-windownumber.patch= and
+=patches/emacs-30-ns-appdefined-retry.patch=.
 
 A third patch is optional and purely cosmetic:
-
-- =patches/emacs-30-ns-resize-title.patch= keeps the window title alone while
-  you drag a window edge. Without it the title bar reads =*Org Agenda* — (124 ×
-  57)= for as long as the drag lasts.
+=patches/emacs-30-ns-resize-title.patch= stops the title bar from showing the
+window's size (=*Org Agenda* — (124 × 57)=) while you drag a window edge.
 
 [[https://github.com/d12frosted/homebrew-emacs-plus][emacs-plus]] builds Emacs from source, so it can apply the patches for you:
 
@@ -87,33 +78,11 @@ title-bar patch is the other way round — this one should print =0=:
 lldb --batch -o "disassemble -n '-[EmacsView windowWillResize:toSize:]'" -o quit "$EMACS" | grep -c setTitle
 #+end_src
 
-*** Two traps when you rebuild later
-- Use =brew uninstall= and then =brew install= — not =brew reinstall=. If the
-  final linking step fails, and it does whenever symlinks from an older Emacs
-  are still in =/opt/homebrew/bin=, =brew reinstall= quietly restores the
-  previous build. You are then running an unpatched Emacs that looks freshly
-  installed, which is why the check above is worth running.
-- Homebrew compiles with =-Os= (optimised for size). To get =-O2= instead, add
-  =cflags << "-O2"= near the top of the =cflags= list in the formula at
-  =$(brew --repository)/Library/Taps/d12frosted/homebrew-emacs-plus/Formula/emacs-plus@30.rb=.
-  Homebrew emits its own flags before these, so this one wins.
-  Note that =brew update= silently reverts the edit.
-
-*** What the patches do
-Emacs pumps the macOS event loop by posting itself a private "wake up" event
-and waiting for it to come back. That event is addressed to the application's
-main window, and while the window is minimised there is no main window — so the
-event is addressed to nothing, macOS discards it, and Emacs waits forever.
-Nothing retries, and the timer that could have rescued it has already been
-cancelled, so a single lost event wedges Emacs permanently. The first two
-patches address the event to a window that actually exists, and keep re-sending
-it until the loop really wakes up.
-
-The third removes an old habit of Emacs's macOS port: while a window is being
-resized it overwrites the title bar with the frame's size in characters, and
-puts the real title back when you let go. It was there because window managers
-under GNUstep do this themselves; macOS ones do not, and the size is not worth
-a title that changes under the pointer.
+*** When you rebuild later
+Use =brew uninstall= and then =brew install= — not =brew reinstall=. If the final
+linking step fails (it does whenever symlinks from an older Emacs are still in
+=/opt/homebrew/bin=), =brew reinstall= quietly restores the previous, unpatched
+build. Run the check above afterwards to be sure.
 
 * 2. Install ripgrep
 [[https://github.com/BurntSushi/ripgrep][ripgrep]] powers fast in-project search.
@@ -179,8 +148,7 @@ emacs --batch -l ~/.emacs.d/init.el
 
 * 6. Install the icon font (recommended)
 Category icons — in the agenda and the file tree — are drawn from Google's
-*Material Symbols Outlined* font. There are no per-icon image files to manage;
-each icon is a font glyph, sized to your text so it stays aligned everywhere.
+*Material Symbols Outlined* font.
 
 1. Download *Material Symbols Outlined* from [[https://fonts.google.com/icons][Google Fonts]] ("Download
    family") or the [[https://github.com/google/material-design-icons/tree/master/variablefont][google/material-design-icons]] repo.
@@ -217,12 +185,9 @@ stays off. Full details, including which languages are enabled and how to add
 dictionaries, are in [[file:Customization.org][Customization & appearance]].
 
 * Under the hood / Customize
-- Opening the vault and loading the modules happen in =config.org= ("Bootstrap"
-  section); the list of vaults is =vaults.eld= in the config directory (see
-  [[file:Vaults.org][Vaults]]).
-- The macOS freeze fix is =patches/emacs-30-ns-appdefined-windownumber.patch=
-  plus =patches/emacs-30-ns-appdefined-retry.patch=; their headers record the
-  full diagnosis. They are applied at build time through
-  =~/.config/emacs-plus/build.yml=, not by this configuration at runtime.
+- The list of vaults is =vaults.eld= in the config directory (see [[file:Vaults.org][Vaults]]).
+- The macOS patches are applied when Emacs is built, through
+  =~/.config/emacs-plus/build.yml=, not by this configuration at runtime. Each
+  patch file's header explains what it changes in Emacs.
 - The dev launcher =scripts/run_emacs_dev.sh= sets all of this up automatically
   for testing — see [[file:Developing.org][Developing & extending]].

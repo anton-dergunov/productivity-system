@@ -128,6 +128,11 @@ the hard way:
 - **`mouse-position` is a cross-process call**, so how often it runs matters.
 - **During a live resize, the NS port replaces the frame title with the grid
   size.** `emacs-30-ns-resize-title.patch` removes that; it is cosmetic.
+- **Homebrew builds emacs-plus with `-Os`.** For `-O2`, add `cflags << "-O2"`
+  near the top of the `cflags` list in
+  `$(brew --repository)/Library/Taps/d12frosted/homebrew-emacs-plus/Formula/emacs-plus@30.rb`;
+  Homebrew's own flags come first, so this one wins. `brew update` silently
+  reverts the edit.
 
 ## Not built yet
 

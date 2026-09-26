@@ -23,9 +23,8 @@ missing optional dependency or a path that needs setting.
 - If you've turned on *file-set filtering* (=C-c p g=), the agenda only shows the
   active set — toggle it off to see everything.
 - If it went empty part-way through a session, check =custom.el= in your config
-  folder for a saved =org-agenda-files= line and delete it. The agenda list is
-  computed from your Org folder on every build, so a value saved there is stale
-  by definition; older versions could end up saving one. Restart afterwards.
+  folder for a saved =org-agenda-files= line, delete it, and restart. The agenda
+  works out its files by itself, so a saved list only gets in the way.
 
 * Icons look like boxes or are missing
 - The *Material Symbols Outlined* font isn't installed, or the wrong variant is.
@@ -53,24 +52,16 @@ missing optional dependency or a path that needs setting.
   extending]]). If it works there, the issue is in your settings or your Org data.
 - Launch with =emacs --debug-init= to get a backtrace on startup errors.
 
-* The mouse pointer jumps to the corner of the frame
-Ediff moves the physical mouse pointer by itself — into its control panel when
-a comparison starts, and to the top-left of the frame when one ends. That is
-what you see when an AI-assistant diff opens or closes. This config turns it
-off by setting =ediff-grab-mouse= to =nil= (see [[file:AI-integration.org][AI integration]]); set it back to
-=t= for the stock behaviour.
+* Emacs freezes on macOS
+If the window stops accepting keyboard and mouse input and only Force Quit gets
+you out — often after minimising it — you are running a stock Emacs build.
+Install the patched one described in [[file:Installation.org][Installation]].
 
 * The mouse pointer stops changing shape
-The pointer stays an arrow everywhere: no pointing hand over links in your Org
-files or over entries in the file tree, and no resize arrows over the dividers
-between windows. Clicking and highlighting still work, so it looks like links
-have broken — but nothing is wrong with the links, and every window is affected
-at once. It starts after dragging a divider to resize windows, and once it
-starts it used to last until you restarted Emacs.
-
-This now clears itself: the pointer comes back as soon as you press a key or
-run any command. If you ever see it persist beyond that, restarting Emacs
-restores it.
+After you drag a divider to resize windows, the pointer may stay an arrow
+everywhere — no pointing hand over links, no resize arrows over dividers. The
+links still work. The pointer comes back as soon as you press a key or run any
+command; if it ever doesn't, restarting Emacs restores it.
 
 * "Conflicted copy" files keep appearing
 Your vault is in a cloud folder (Dropbox and the like) as well as in Git, and
