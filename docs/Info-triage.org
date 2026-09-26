@@ -27,10 +27,9 @@ machine, the Triage menu is not shown at all and nothing here applies.
    =directory= to look through the files themselves. One click is enough.
 4. Press =d= on anything not worth keeping. It goes to the Trash, and the list
    renumbers.
-5. Switch to Claude Code and type =/route triage=. It reads the *other* generated
-   file — a fuller Markdown version of the same list, in the same order with the
-   same numbers — proposes where each item belongs, and waits for you to approve.
-   Naming particular items works too: "route items 3, 5 and 10".
+5. Switch to Claude Code and type =/route triage=. It sees the same list with
+   the same numbers, proposes where each item belongs, and waits for you to
+   approve. Naming particular items works too: "route items 3, 5 and 10".
 6. Approving it files those items and deletes their folders, which the next sync
    propagates back to the server.
 
@@ -45,15 +44,13 @@ Items are grouped by the day they arrived, oldest day first:
 : ** 21 · Ever noticed the coloured tags on the ancient trees…            :post:
 :    directory · source
 
-The number is what you quote to =/route=. It runs straight through the days
-rather than restarting under each one: it is positional, renumbered every time
-the list is rebuilt, and it always matches what Claude Code reads.
+The number is what you quote to =/route=. It runs straight through the days and
+is reassigned whenever the list is rebuilt, so quote the numbers you see now.
 
 The label itself is the link — click it to see what was captured. Most captured
-items have no title of their own (an Instagram post has nothing worth calling
-one), so the label is derived from the item's own caption, on-screen text or
-transcript. The kind of thing it is sits at the right-hand edge as a tag, which
-leaves the whole width of the window for the label.
+items have no title of their own, so the label comes from the item's caption,
+on-screen text or transcript. The kind of item sits at the right-hand edge as a
+tag.
 
 An item you added a note to when forwarding it shows that note in italics
 between the label and the links.
@@ -63,81 +60,34 @@ The =·= line beneath carries the rest: =directory= opens the item's folder, and
 
 ** Keys in the queue
 
-The queue is read-only — it is regenerated from scratch on every sync, so
-anything typed into it would be lost — which leaves single keys free:
+The queue is read-only (it is rebuilt on every sync), so single keys act on it:
 
-| Key         | Does                                                     |
-|-------------+----------------------------------------------------------|
-| =RET=, click  | follow the link at point                                 |
-| =n= / =p=       | next / previous item (day headings are stepped over)      |
-| =d=           | drop the item at point (asks first; goes to the Trash)    |
-| =s=           | sync                                                     |
-| =g=           | renumber both lists without syncing                      |
-| =e=           | open the item's folder outside Emacs                     |
-| =b= / =f=       | back / forward                                           |
-| =q=           | put the queue away                                       |
+| Key           | Does                                                   |
+|---------------+--------------------------------------------------------|
+| =RET=, click  | follow the link at point                               |
+| =n= / =p=     | next / previous item (day headings are stepped over)   |
+| =d=           | drop the item at point (asks first; goes to the Trash) |
+| =s=           | sync                                                   |
+| =g=           | rebuild the list without syncing                       |
+| =e=           | open the item's folder outside Emacs                   |
+| =b= / =f=     | back / forward                                         |
+| =q=           | put the queue away                                     |
 
 * Looking inside an item
 
 *The queue keeps its window.* The first item you open splits the frame and
-takes the pane beside it; every item after that lands in that same pane, so the
-list stays where it is and stays in view. Following a link *inside* an item —
-=content.md=, a folder, a page — replaces what is in that pane rather than
-adding another one, so the frame never grows past two.
-
-The =‹ ›= buttons at the left of the mode line walk back and forward along the
-trail you took, and so do =C-c <left>= and =C-c <right>=. Going back never adds
-a window. An arrow with nowhere to go is drawn dim and does nothing when
-clicked, so the pair says which way you can actually move.
-
-The mode line beside them names the file you are looking at by its path, with
-=~= for your home folder, and how far through it you are — so the several
-=index.md= files a triage session opens are told apart at a glance. An image
-shows its path alone. See [[file:Files-and-navigation.org][Files and
-navigation]].
+takes the pane beside it; every item after that, and every link you follow
+inside one, lands in that same pane, so the list stays in view. The =‹ ›=
+buttons on the mode line (or =C-c <left>= / =C-c <right>=) walk back and forward
+along the trail — see [[file:Files-and-navigation.org][Files & navigation]], which also covers how each kind
+of file opens and how folder listings work.
 
 To work one window at a time instead, with =‹= to get back to the list, turn
 =ps/info-triage-open-beside= off.
 
-What a click does depends on the kind of file, because Emacs is the right place
-for some of them and the wrong place for others:
-
-| Kind                       | Opens                                            |
-|----------------------------+--------------------------------------------------|
-| Markdown, text, JSON       | in Emacs, rendered — headings and emphasis, not markup |
-| HTML                       | in Emacs as a *page*, not as source code         |
-| Images                     | in Emacs                                         |
-| PDF                        | in macOS Preview                                 |
-| Video                      | in the system player                             |
-| Audio                      | refused — the transcript beside it is the readable copy |
-| Anything else non-text     | asks before opening                              |
-
-Nothing is opened as raw bytes. A file Emacs cannot show usefully says so
-instead of filling a buffer with a video.
-
-Inside a captured web page, =R= strips it down to just the article and =&=
-reopens it in your real browser — Emacs renders a page, it does not run one.
-
-An item whose payload is twenty photos is one a file browser handles better:
-=e= (Productivity → Triage → Open Item Externally) hands the folder to VS Code.
-
-* Browsing the folder
-
-Clicking =directory= opens the item's folder as an icon, a size and a name —
-folders first, then files, =.DS_Store= hidden, and the =ls -l= columns left
-out. Clicking a file opens it by the table above; clicking a folder goes into
-it, reusing the same window rather than opening a new one each time.
-
-Press =(= for the full =ls= listing — permissions, owner, dates — and again to
-go back.
-
-*Up is not Back.* =..= at the top of the listing goes to the parent folder, and
-so does =^=; =‹= on the mode line retraces the folders you actually opened,
-which after a few steps is somewhere else entirely. Both are useful, which is
-why they are separate.
-
-The path across the top is clickable folder by folder, so you can jump several
-levels up in one click rather than pressing =^= repeatedly.
+Audio is not opened at all — the transcript beside it is the readable copy. An
+item whose payload is twenty photos is one a file browser handles better: =e=
+(Productivity → Triage → Open Item Externally) hands the folder to VS Code.
 
 * Under the hood / Customize
 
@@ -147,36 +97,11 @@ levels up in one click rather than pressing =^= repeatedly.
 - The queue, the sync commands and the drop are =lisp/ps-info-triage.el=.
   Settings — where the inbox is, where the sync script is, which program =e=
   hands a folder to, whether items open beside the queue — are in =config.org=
-  → /Settings/ → /Info triage/ (=ps/info-triage-directory=,
+  → /Settings → Info triage/ (=ps/info-triage-directory=,
   =ps/info-triage-sync-script=, =ps/info-triage-external-command=,
   =ps/info-triage-open-beside=).
-- What opening a file of a given kind does is =lisp/ps-open.el=, and the whole
-  policy is the one list =ps/open-handlers= in =config.org= → /Settings/ →
-  /Opening files/. Each entry is a file-name pattern and one of =emacs=,
-  =browser=, =external= or =refuse=; the first match wins, and anything not
-  listed is decided by looking at the file. =ps/open-external-command= is the
-  program =external= uses.
-- Back and forward are =lisp/ps-nav.el=; =ps/nav-history-limit= and the two
-  glyphs are in =config.org= → /Settings/ → /Navigation history/. The history
-  is per window, so two windows keep separate trails.
-- The Markdown reading view, the folder-browsing behaviour and the page renderer
-  are =config.org= → /Reading Markdown/, /Browsing a folder/ and /Reading HTML
-  pages/. All three apply everywhere, not only inside the inbox. In a Markdown
-  file that still contains a wide table, =C-c |= stops lines wrapping so the
-  table stays whole and scrolls sideways instead.
-- The listing's icons and sizes are =lisp/ps-dired.el=, with
-  =ps/dired-decorate-listing= and =ps/dired-size-width= in =config.org= →
-  /Settings/ → /Folder listing/. The icons are the file tree's own, so a folder
-  looks the same in both.
-- A single click follows a link because the queue acts on the press of the
-  button rather than its release (=ps/open-down-click= in =lisp/ps-open.el=).
-  Waiting for the release does not work here: the press moves the cursor into
-  the link, Org answers by showing the link's raw text, and the line grows out
-  from under the pointer before the release arrives — which is why a link used
-  to want two clicks.
-- Which files the mode line gives a heading path to is =ps/mode-line--plan-file-p=
-  in =lisp/ps-mode-line.el=. The queue is an Org file but not one of your plans,
-  so it names itself by path like any other.
+- Opening files, back/forward and folder listings are shared with the rest of
+  the config; their settings are listed in [[file:Files-and-navigation.org][Files & navigation]].
 - The two generated lists, and the sync script itself, belong to the
   =info-triage= project — see its =docs/EMACS.md=. Nothing in this
   configuration writes to them.

@@ -33,10 +33,8 @@ The practical consequence is that *most of your tasks should carry no tags at
 all*, and that is correct. Tagging is a deliberate pass, not something to do
 while writing a task.
 
-Situations are deliberately *not* tags. A situation is a bundle of capabilities,
-so tagging situations directly would mean re-tagging everything whenever a new
-one appears. The tags describe requirements; the situations are queries over
-them — a new situation costs one line and no re-tagging.
+You never tag a task with a situation. Situations are searches over the tags, so
+adding a new one costs one line and no re-tagging.
 
 * Opening a situation
 Choose one from *Productivity → Plan & Review → Situations*, or press =C-c p S=
@@ -66,13 +64,8 @@ At the top sits a *plate* naming the situation, with its icon. To its right:
 - =Situations ▾= opens the full list, so you can move to a different one without
   leaving the buffer.
 
-There are no back/forward arrows here — unlike the Calendar, a situation is not a
-period of time, so there is nothing to step through.
-
-The mode line shows =Situation · <name>=, and clicking it opens the view
-switcher — the same menu, with the same entries in the same order, as
-Productivity → Plan & Review. Your situations sit in its /Situations/ submenu,
-so you can move between any two views from one click.
+The mode line shows =Situation · <name>=; click it for the [[file:Agenda.org][view switcher]], whose
+/Situations/ submenu lists all of yours.
 
 If nothing matches, the view says so rather than showing an empty page. That is
 useful information: an empty /To download/ means you are ready to lose signal.
@@ -154,9 +147,9 @@ exclude =DONE= yourself.
 * What your AI assistant sees
 If you use the [[file:AI-integration.org][Claude Code integration]], your tag and situation declarations are
 written into the generated context file your assistant reads, as two tables: what
-each tag promises, and which situation query each one feeds. That is generated
-from the same declaration the rest of the system uses, so it can never drift —
-and it means you do not have to describe your tags a second time in =AGENTS.md=.
+each tag promises, and which situation query each one feeds. They are generated
+from your declarations, so you do not have to describe your tags a second time
+in =AGENTS.md=.
 
 * Under the hood / Customize
 Logic lives in =lisp/ps-situations.el=. Settings are in =config.org= under

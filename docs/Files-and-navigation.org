@@ -130,12 +130,20 @@ have none. Switching vaults, or clearing the session with =M-x desktop-clear=,
 forgets the trails.
 
 * Opening a file that is not a plan
-Emacs is used here for planning, so this configuration does not pretend to be
-the right place to open anything: a PDF goes to macOS Preview, a video to the
-system player, an HTML file renders as a *page* rather than as source, and
-Markdown opens with a reading view like the one these documentation pages use.
-Audio is declined outright, and anything else that is not text asks before it
-opens — nothing is ever loaded as raw bytes.
+Emacs is used here for planning, so not every file opens in it. What a click
+does depends on the kind of file:
+
+| Kind                   | Opens                                                  |
+|------------------------+--------------------------------------------------------|
+| Markdown, text, JSON   | in Emacs, rendered — headings and emphasis, not markup |
+| HTML                   | in Emacs as a *page*, not as source code               |
+| Images                 | in Emacs                                               |
+| PDF                    | in macOS Preview                                       |
+| Video                  | in the system player                                   |
+| Audio                  | not opened                                             |
+| Anything else non-text | asks before opening                                    |
+
+Nothing is ever loaded as raw bytes.
 
 Opening a file replaces what is in the window you opened it from, so walking
 from a folder into a file and on into another one stays in one place. The
@@ -146,8 +154,7 @@ Inside a rendered page, =R= reduces it to just the article and =&= hands it to
 your real browser. In a Markdown file with a table too wide for the window,
 =C-c |= stops lines wrapping so the table stays whole and scrolls sideways.
 
-The whole policy is one editable list, =ps/open-handlers=. See [[file:Info-triage.org][Info triage]] for
-the table and for where to change it.
+To change what opens where, edit =ps/open-handlers= (see below).
 
 * Browsing a folder
 Opening a folder (Productivity → Capture & Notes → Open Notes Folder, or any
@@ -216,11 +223,17 @@ gets one.
   are in =config.org= → /Settings → Navigation history/, and the hover look is
   the =ps/nav-button-hover= face.
 - Opening files: =lisp/ps-open.el=, driven entirely by =ps/open-handlers= in
-  =config.org= → /Settings → Opening files/. That a single click follows a link
+  =config.org= → /Settings → Opening files/. Each entry is a file-name pattern
+  and one of =emacs=, =browser=, =external= or =refuse=; the first match wins,
+  and anything not listed is decided by looking at the file.
+  =ps/open-external-command= is the program =external= uses. That a single
+  click follows a link
   is set in =config.org= → /One click follows a link/.
-- Folder listings: =lisp/ps-dired.el= (=ps/dired-decorate-listing=,
-  =ps/dired-size-width=), wired in =config.org= → /Browsing a folder/; the
-  Markdown reading view is =config.org= → /Reading Markdown/.
+- Folder listings: =lisp/ps-dired.el=; =ps/dired-decorate-listing= and
+  =ps/dired-size-width= are in =config.org= → /Settings → Folder listing/, and
+  the listing itself is set up in /Browsing a folder/. The Markdown reading view
+  and the page renderer are =config.org= → /Reading Markdown/ and /Reading HTML
+  pages/.
 - Window title and mode line: =lisp/ps-mode-line.el=; =ps/mode-line-separator=
   and =ps/mode-line-modified-indicator= are in =config.org= → /Settings → Mode
   line/. Same-named files are told apart by Emacs's

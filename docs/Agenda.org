@@ -118,57 +118,41 @@ part of your planning set it shows the file name, an open-task count, your
 position, and the current heading path, separated by a thin =·=. Any other file
 names itself by its path instead and carries no heading path — see
 [[file:Files-and-navigation.org][Files and navigation]]. The heading path is
-shown as plain text — links collapse to their name (an =obsidian:= link shows
-just its note title) and emphasis markers like =*bold*= are dropped. Like
-=org-super-agenda= grouping and the layout pills, it's part of making the
-planning view readable — not a cosmetic theme choice. Its colors follow whatever
-[[file:Customization.org][theme]] you pick.
+shown as plain text — links collapse to their name and emphasis markers like
+=*bold*= are dropped. Its colors follow whatever [[file:Customization.org][theme]] you pick.
 
 In a file that's part of your planning set, a count of open tasks (TODO, NEXT,
 and the like — not DONE) appears next to the file name; hover it to see the
-full breakdown by state, DONE included. It's recomputed shortly after you edit
-the file, so it stays current as you work. Files outside your planning set —
-this config's own docs and settings, for instance — never show it, and neither
-does a file with no task headings at all.
+full breakdown by state, DONE included. It stays current as you edit. Files
+outside your planning set — this config's own docs and settings, for instance —
+never show it, and neither does a file with no task headings at all.
 
-In any of the five planning-view buffers — Agenda, [[file:Calendar.org][Calendar]],
-[[file:Tasks-view.org][Tasks]], [[file:Planning-tools.org][Availability]], or
-[[file:Planning-tools.org][Conflicts]] — the leading title (e.g. =Agenda ▾=) is
-also a *view switcher*: click it to pop up a menu and jump straight to any
-other view, [[file:Situations.org][situations]] included — it mirrors
-Productivity → Plan & Review exactly, and it is the same
-click-a-label-for-a-menu interaction as the
-[[file:Files-and-navigation.org][file tree]]'s file-set selector. Whichever
-view you switch to takes over the window you're in, leaving any other open
-window untouched (splitting first only if that window is the only one open).
+In any of the planning views — Agenda, [[file:Calendar.org][Calendar]], [[file:Tasks-view.org][Tasks]],
+[[file:Planning-tools.org][Availability]], [[file:Planning-tools.org][Conflicts]] or a [[file:Situations.org][situation]] — the leading title (e.g.
+=Agenda ▾=) is also a *view switcher*: click it for a menu of every other view,
+the same as Productivity → Plan & Review. The view you pick opens in the window
+you're in.
 
-When the Agenda finds scheduling conflicts, a count (e.g. =⚠ 2 conflicts=)
-appears next to the title — in the mode line's normal text, not a warning
-color, so it informs without shouting. Click it to open the full
-[[file:Planning-tools.org][conflict checker]]. It only appears for the Agenda
-view; switching to Calendar or Tasks clears it.
+When the Agenda finds scheduling conflicts, a quiet count (e.g. =⚠ 2 conflicts=)
+appears next to the title. Click it to open the full [[file:Planning-tools.org][conflict checker]].
 
 * Under the hood / Customize
 - The sections come from =org-super-agenda= and the custom command =c=, defined
   in =config.org= → /Org Mode → Agenda → Super agenda/. Edit the shared list
   =ps/agenda-day-super-groups= there to add, remove, or reorder sections; it also
-  gives Org's stock agenda (=C-c a= then =a=) the same sections. Clicking a date
-  stamp in an Org file opens the [[file:Calendar.org][Calendar]] at that date.
-- The aligned layout, pills, category/schedule icons, emoji, and folding are the
-  modules =lisp/ps-agenda-layout.el=, =ps-agenda-icons.el=,
-  =ps-schedule-icons.el=, =ps-agenda-emoji.el=, and =ps-agenda-fold.el=; their
-  settings live in the matching =config.org= blocks.
-- Org markup in task text is rendered by =lisp/ps-emphasis.el= (no settings).
+  gives Org's stock agenda (=C-c a= then =a=) the same sections.
+- The aligned layout, pills, category/schedule icons, emoji, markup and folding
+  are the modules =lisp/ps-agenda-layout.el=, =ps-agenda-icons.el=,
+  =ps-schedule-icons.el=, =ps-agenda-emoji.el=, =ps-emphasis.el= and
+  =ps-agenda-fold.el=; their settings live in the matching =config.org= blocks.
 - The schedule view is =lisp/ps-schedule-view.el=; defaults
   (=ps/schedule-view-style=, =ps/schedule-view-auto-refresh=) are in =config.org=
   → /Schedule view/.
 - Which sections start folded: =ps/agenda-fold-default-collapsed= in =config.org=
   → /Agenda fold/.
 - The mode line is =lisp/ps-mode-line.el=; its separator is
-  =ps/mode-line-separator= in =config.org= → /Mode line/, and which files get
-  the planning shape is =ps/mode-line--plan-file-p=. The view-switcher
-  popup is =ps/mode-line--view-click=, in the same file.
+  =ps/mode-line-separator= in =config.org= → /Settings → Mode line/.
 - The task count is =lisp/ps-task-count.el=; =ps/task-count-idle-delay= in
-  =config.org= → /Task count/ controls how long it waits after an edit before
-  recomputing. Which files it applies to is the same set as the agenda — see
-  /Org files/ under Settings.
+  =config.org= → /Settings → Task count/ controls how long it waits after an
+  edit before recomputing. It applies to the same files as the agenda — see
+  /Settings → Org files/.
